@@ -1,45 +1,39 @@
+// src/store/slices/spellCheckSlice.js
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { spellCheckAPI } from "@/utils/api";
+import { checkSpelling, correctText } from "@/utils/chatgptService";
 
 // Async thunks
 export const checkText = createAsyncThunk(
   "spellCheck/checkText",
   async ({ text, options = {} }, { rejectWithValue }) => {
     try {
-      const response = await spellCheckAPI.checkText(text, options);
+      const response = await checkSpelling(text);
+
+      if (!response.success) {
+        return rejectWithValue(response.error);
+      }
+
       return response.data;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || "Imlo tekshirishda xato"
-      );
+      return rejectWithValue(error.message || "Imlo tekshirishda xato");
     }
   }
 );
 
-export const checkWord = createAsyncThunk(
-  "spellCheck/checkWord",
-  async (word, { rejectWithValue }) => {
+export const correctFullText = createAsyncThunk(
+  "spellCheck/correctFullText",
+  async (text, { rejectWithValue }) => {
     try {
-      const response = await spellCheckAPI.checkWord(word);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || "So'z tekshirishda xato"
-      );
-    }
-  }
-);
+      const response = await correctText(text);
 
-export const getSuggestions = createAsyncThunk(
-  "spellCheck/getSuggestions",
-  async ({ word, limit = 5 }, { rejectWithValue }) => {
-    try {
-      const response = await spellCheckAPI.getSuggestions(word, limit);
+      if (!response.success) {
+        return rejectWithValue(response.error);
+      }
+
       return response.data;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || "Takliflar olishda xato"
-      );
+      return rejectWithValue(error.message || "Matnni to'g'irlashda xato");
     }
   }
 );
@@ -48,6 +42,7 @@ const initialState = {
   // Asosiy matn
   originalText: "",
   currentText: "",
+  correctedText: "",
 
   // Tekshiruv natijalari
   results: [],
@@ -55,27 +50,24 @@ const initialState = {
 
   // Loading holatlari
   isChecking: false,
-  isCheckingWord: false,
-  isLoadingSuggestions: false,
+  isCorrecting: false,
 
   // Xatolar
   error: null,
-  wordError: null,
-  suggestionsError: null,
+  correctError: null,
 
   // UI holatlari
   selectedWordIndex: -1,
   showSuggestions: false,
   highlightErrors: true,
-  autoCheck: true,
+  autoCheck: false, // ChatGPT API expensive bo'lgani uchun avtomatik o'chirildi
 
   // Takliflar
   currentSuggestions: [],
-  selectedSuggestionIndex: 0,
 
-  // Tarix
-  history: [],
-  historyIndex: -1,
+  // Saqlangan versiyalar
+  versions: [],
+  currentVersion: 0,
 };
 
 const spellCheckSlice = createSlice({
@@ -92,12 +84,6 @@ const spellCheckSlice = createSlice({
       state.currentText = action.payload;
     },
 
-    updateTextAtPosition: (state, action) => {
-      const { start, end, newText } = action.payload;
-      const text = state.currentText;
-      state.currentText = text.slice(0, start) + newText + text.slice(end);
-    },
-
     // Takliflarni qo'llash
     applySuggestion: (state, action) => {
       const { wordIndex, suggestion } = action.payload;
@@ -108,8 +94,18 @@ const spellCheckSlice = createSlice({
           text.slice(0, result.start) + suggestion + text.slice(result.end);
 
         state.currentText = newText;
+
+        // Natijalarni yangilash
+        const lengthDiff = suggestion.length - result.word.length;
         state.results[wordIndex].isCorrect = true;
         state.results[wordIndex].word = suggestion;
+
+        // Keyingi so'zlarning pozitsiyasini yangilash
+        for (let i = wordIndex + 1; i < state.results.length; i++) {
+          state.results[i].start += lengthDiff;
+          state.results[i].end += lengthDiff;
+        }
+
         state.selectedWordIndex = -1;
         state.showSuggestions = false;
       }
@@ -117,25 +113,12 @@ const spellCheckSlice = createSlice({
 
     // So'z tanlash
     selectWord: (state, action) => {
-      state.selectedWordIndex = action.payload;
-      state.showSuggestions = action.payload >= 0;
-      state.selectedSuggestionIndex = 0;
-    },
+      const wordIndex = action.payload;
+      state.selectedWordIndex = wordIndex;
+      state.showSuggestions = wordIndex >= 0;
 
-    // Takliflar bilan ishlash
-    selectNextSuggestion: (state) => {
-      if (state.currentSuggestions.length > 0) {
-        state.selectedSuggestionIndex =
-          (state.selectedSuggestionIndex + 1) % state.currentSuggestions.length;
-      }
-    },
-
-    selectPrevSuggestion: (state) => {
-      if (state.currentSuggestions.length > 0) {
-        state.selectedSuggestionIndex =
-          state.selectedSuggestionIndex === 0
-            ? state.currentSuggestions.length - 1
-            : state.selectedSuggestionIndex - 1;
+      if (wordIndex >= 0 && state.results[wordIndex]) {
+        state.currentSuggestions = state.results[wordIndex].suggestions || [];
       }
     },
 
@@ -155,38 +138,57 @@ const spellCheckSlice = createSlice({
       state.currentSuggestions = [];
     },
 
+    // To'g'irlangan matinni qabul qilish
+    acceptCorrectedText: (state) => {
+      if (state.correctedText) {
+        // Eski versiyani saqlash
+        state.versions.push({
+          text: state.currentText,
+          timestamp: new Date().toISOString(),
+          type: "original",
+        });
+
+        state.currentText = state.correctedText;
+        state.originalText = state.correctedText;
+        state.correctedText = "";
+        state.results = [];
+        state.statistics = null;
+        state.currentVersion = state.versions.length;
+      }
+    },
+
+    // Versiyaga qaytish
+    revertToVersion: (state, action) => {
+      const versionIndex = action.payload;
+      if (state.versions[versionIndex]) {
+        state.currentText = state.versions[versionIndex].text;
+        state.originalText = state.versions[versionIndex].text;
+        state.currentVersion = versionIndex;
+        state.results = [];
+        state.statistics = null;
+      }
+    },
+
     // Xatolarni tozalash
     clearErrors: (state) => {
       state.error = null;
-      state.wordError = null;
-      state.suggestionsError = null;
+      state.correctError = null;
     },
 
     // Hammani tozalash
     clearAll: (state) => {
       state.originalText = "";
       state.currentText = "";
+      state.correctedText = "";
       state.results = [];
       state.statistics = null;
       state.error = null;
+      state.correctError = null;
       state.selectedWordIndex = -1;
       state.showSuggestions = false;
       state.currentSuggestions = [];
-    },
-
-    // Tarixga qo'shish
-    addToHistory: (state, action) => {
-      const entry = {
-        text: action.payload.text,
-        results: action.payload.results,
-        timestamp: new Date().toISOString(),
-      };
-
-      state.history.unshift(entry);
-      if (state.history.length > 10) {
-        state.history = state.history.slice(0, 10);
-      }
-      state.historyIndex = 0;
+      state.versions = [];
+      state.currentVersion = 0;
     },
   },
 
@@ -199,56 +201,27 @@ const spellCheckSlice = createSlice({
       })
       .addCase(checkText.fulfilled, (state, action) => {
         state.isChecking = false;
-        state.results = action.payload.results;
+        state.results = action.payload.results || [];
         state.statistics = action.payload.statistics;
-
-        // Tarixga qo'shish
-        const entry = {
-          text: state.currentText,
-          results: action.payload.results,
-          statistics: action.payload.statistics,
-          timestamp: new Date().toISOString(),
-        };
-
-        state.history.unshift(entry);
-        if (state.history.length > 10) {
-          state.history = state.history.slice(0, 10);
-        }
       })
       .addCase(checkText.rejected, (state, action) => {
         state.isChecking = false;
         state.error = action.payload;
       });
 
-    // checkWord
+    // correctFullText
     builder
-      .addCase(checkWord.pending, (state) => {
-        state.isCheckingWord = true;
-        state.wordError = null;
+      .addCase(correctFullText.pending, (state) => {
+        state.isCorrecting = true;
+        state.correctError = null;
       })
-      .addCase(checkWord.fulfilled, (state, action) => {
-        state.isCheckingWord = false;
-        // Word check natijasini saqlash kerak bo'lsa
+      .addCase(correctFullText.fulfilled, (state, action) => {
+        state.isCorrecting = false;
+        state.correctedText = action.payload.corrected;
       })
-      .addCase(checkWord.rejected, (state, action) => {
-        state.isCheckingWord = false;
-        state.wordError = action.payload;
-      });
-
-    // getSuggestions
-    builder
-      .addCase(getSuggestions.pending, (state) => {
-        state.isLoadingSuggestions = true;
-        state.suggestionsError = null;
-      })
-      .addCase(getSuggestions.fulfilled, (state, action) => {
-        state.isLoadingSuggestions = false;
-        state.currentSuggestions = action.payload.suggestions || [];
-      })
-      .addCase(getSuggestions.rejected, (state, action) => {
-        state.isLoadingSuggestions = false;
-        state.suggestionsError = action.payload;
-        state.currentSuggestions = [];
+      .addCase(correctFullText.rejected, (state, action) => {
+        state.isCorrecting = false;
+        state.correctError = action.payload;
       });
   },
 });
@@ -256,17 +229,15 @@ const spellCheckSlice = createSlice({
 export const {
   setOriginalText,
   setCurrentText,
-  updateTextAtPosition,
   applySuggestion,
   selectWord,
-  selectNextSuggestion,
-  selectPrevSuggestion,
   setHighlightErrors,
   setAutoCheck,
   closeSuggestions,
+  acceptCorrectedText,
+  revertToVersion,
   clearErrors,
   clearAll,
-  addToHistory,
 } = spellCheckSlice.actions;
 
 export default spellCheckSlice.reducer;

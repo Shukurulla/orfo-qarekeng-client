@@ -1,3 +1,5 @@
+// src/components/Transliterator/Transliterator.jsx
+
 import React, { useState, useCallback } from "react";
 import {
   Row,
@@ -17,14 +19,12 @@ import {
   ClearOutlined,
   TranslationOutlined,
   ScanOutlined,
-  ReloadOutlined,
 } from "@ant-design/icons";
 import { useAppSelector, useAppDispatch } from "@/hooks/redux";
 import {
   convertText,
-  detectScript,
+  detectTextScript,
   setOriginalText,
-  setConvertedText,
   setConversionMode,
   swapTexts,
   clearAll,
@@ -78,29 +78,22 @@ const Transliterator = () => {
       return;
     }
 
+    if (originalText.trim().length < 3) {
+      message.warning("Matn juda qisqa, kamida 3 ta harf kiriting");
+      return;
+    }
+
     try {
-      const result = await dispatch(
+      await dispatch(
         convertText({
           text: originalText,
           mode: conversionMode,
         })
       ).unwrap();
 
-      dispatch(
-        addNotification({
-          type: "success",
-          title: "Muvaffaqiyat",
-          message: `Matn ${result.from} dan ${result.to} ga aylantirildi`,
-        })
-      );
+      message.success(`Matn muvaffaqiyatli aylantirildi`);
     } catch (error) {
-      dispatch(
-        addNotification({
-          type: "error",
-          title: "Xato",
-          message: error || "Aylantirish xatosi",
-        })
-      );
+      message.error(error || "Aylantirish xatosi");
     }
   }, [dispatch, originalText, conversionMode]);
 
@@ -112,15 +105,10 @@ const Transliterator = () => {
     }
 
     try {
-      await dispatch(detectScript(originalText)).unwrap();
+      await dispatch(detectTextScript(originalText)).unwrap();
+      message.success("Alifbo aniqlandi");
     } catch (error) {
-      dispatch(
-        addNotification({
-          type: "error",
-          title: "Xato",
-          message: "Alifbo aniqlashda xato",
-        })
-      );
+      message.error("Alifbo aniqlashda xato");
     }
   }, [dispatch, originalText]);
 
@@ -131,6 +119,7 @@ const Transliterator = () => {
       return;
     }
     dispatch(swapTexts());
+    message.info("Matnlar almashtirildi");
   }, [dispatch, convertedText]);
 
   // Copy to clipboard
@@ -265,6 +254,9 @@ const Transliterator = () => {
               <div>
                 <span>Kirill: {scriptStatistics.cyrillic.percentage}% | </span>
                 <span>Lotin: {scriptStatistics.latin.percentage}%</span>
+                {scriptStatistics.total > 0 && (
+                  <span> | Jami harflar: {scriptStatistics.total}</span>
+                )}
               </div>
             }
             type="info"
@@ -305,7 +297,7 @@ const Transliterator = () => {
             <TextArea
               value={originalText}
               onChange={handleOriginalTextChange}
-              placeholder="Bu yerga Qoraqolpoq tilida matn yozing (kirill yoki lotin alifboda)..."
+              placeholder="Bu yerga Qoraqalpoq tilida matn yozing (kirill yoki lotin alifboda)..."
               className="min-h-[400px] resize-none"
               style={{
                 fontSize: "16px",
@@ -411,7 +403,7 @@ const Transliterator = () => {
             <div className="text-center">
               <TranslationOutlined className="text-4xl text-blue-500 mb-4" />
               <h3 className="text-lg font-semibold mb-2">
-                Transliteratsiya qoidalari
+                ChatGPT 3.5 bilan Professional Transliteratsiya
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
@@ -430,6 +422,13 @@ const Transliterator = () => {
                     <div>ö → ө, ü → ү, ş → ш</div>
                   </div>
                 </div>
+              </div>
+              <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Maslahat:</strong> Avtomatik rejim alifboni aniqlab,
+                  kerakli tomonga aylantiradi. Aniq yo'nalish uchun "Kirildan
+                  Lotinga" yoki "Lotindan Kirilga" rejimlarini tanlang.
+                </p>
               </div>
             </div>
           </Card>

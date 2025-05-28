@@ -1,3 +1,5 @@
+// src/components/Layout/Layout.jsx
+
 import React, { useState, useEffect } from "react";
 import {
   Layout as AntLayout,
@@ -50,6 +52,15 @@ const Layout = ({ children }) => {
     setCollapsed(isMobile);
   }, [isMobile]);
 
+  // Theme toggle effect
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDark]);
+
   // Menu items
   const menuItems = [
     {
@@ -59,6 +70,7 @@ const Layout = ({ children }) => {
       onClick: () => {
         dispatch(setActiveTab("/"));
         navigate("/");
+        if (isMobile) dispatch(setSidebarOpen(false));
       },
     },
     {
@@ -68,6 +80,7 @@ const Layout = ({ children }) => {
       onClick: () => {
         dispatch(setActiveTab("spellcheck"));
         navigate("/spellcheck");
+        if (isMobile) dispatch(setSidebarOpen(false));
       },
     },
     {
@@ -77,6 +90,7 @@ const Layout = ({ children }) => {
       onClick: () => {
         dispatch(setActiveTab("translate"));
         navigate("/translate");
+        if (isMobile) dispatch(setSidebarOpen(false));
       },
     },
     {
@@ -89,22 +103,42 @@ const Layout = ({ children }) => {
       onClick: () => {
         navigate("/about");
         dispatch(setActiveTab("about"));
+        if (isMobile) dispatch(setSidebarOpen(false));
       },
     },
     {
       key: "settings",
       icon: <SettingOutlined />,
       label: "Sozlamalar",
-      onClick: () => dispatch(openModal("settings")),
+      onClick: () => {
+        dispatch(openModal("settings"));
+        if (isMobile) dispatch(setSidebarOpen(false));
+      },
     },
   ];
 
-  // Active menu key
+  // Active menu key based on current route and tab
   const getActiveKey = () => {
-    if (location.pathname !== "/") {
-      return "Bosh sahifa";
-    }
-    return activeTab;
+    if (location.pathname === "/about") return "about";
+    if (location.pathname === "/spellcheck") return "spellcheck";
+    if (location.pathname === "/translate") return "translate";
+    if (location.pathname === "/" && activeTab === "spellcheck")
+      return "spellcheck";
+    if (location.pathname === "/" && activeTab === "translate")
+      return "translate";
+    return "/";
+  };
+
+  // Get page title
+  const getPageTitle = () => {
+    if (location.pathname === "/about") return "Loyiha haqida";
+    if (location.pathname === "/spellcheck") return "Imlo tekshiruv";
+    if (location.pathname === "/translate") return "Transliteratsiya";
+    if (location.pathname === "/" && activeTab === "spellcheck")
+      return "Imlo tekshiruv";
+    if (location.pathname === "/" && activeTab === "translate")
+      return "Transliteratsiya";
+    return "Bosh sahifa";
   };
 
   // Sidebar content
@@ -120,7 +154,7 @@ const Layout = ({ children }) => {
             {!collapsed && (
               <div>
                 <h1 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Qoraqolpoq
+                  Qoraqalpaq
                 </h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Imlo tekshiruvchi
@@ -139,6 +173,7 @@ const Layout = ({ children }) => {
           style={{ border: "none" }}
           className="bg-transparent"
           items={menuItems}
+          theme={isDark ? "dark" : "light"}
         />
       </div>
 
@@ -155,6 +190,7 @@ const Layout = ({ children }) => {
             onChange={() => dispatch(toggleTheme())}
             checkedChildren={<MoonOutlined />}
             unCheckedChildren={<SunOutlined />}
+            className={collapsed ? "mx-auto" : ""}
           />
         </div>
       </div>
@@ -186,7 +222,7 @@ const Layout = ({ children }) => {
               <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded flex items-center justify-center">
                 <span className="text-white font-bold text-xs">қ</span>
               </div>
-              <span>Qoraqolpoq</span>
+              <span>Qoraqalpaq</span>
             </div>
           }
           placement="left"
@@ -227,13 +263,7 @@ const Layout = ({ children }) => {
               {/* Page title */}
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {location.pathname === "/about"
-                    ? "Loyiha haqida"
-                    : activeTab === "spellcheck"
-                    ? "Imlo tekshiruv"
-                    : activeTab === "translate"
-                    ? "Transliteratsiya"
-                    : "Bosh sahifa"}
+                  {getPageTitle()}
                 </h2>
               </div>
             </div>

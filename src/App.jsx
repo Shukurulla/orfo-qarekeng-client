@@ -1,7 +1,8 @@
+// src/App.jsx - SODDALASHTIRILGAN VA TO'G'RI VERSIYA
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Provider } from "react-redux";
-import { ConfigProvider, App as AntApp, theme } from "antd"; // Import theme from antd
+import { ConfigProvider, App as AntApp, theme } from "antd";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ToastContainer } from "react-toastify";
@@ -15,6 +16,10 @@ import Home from "./pages/Home";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 
+// Simple Components
+import SimpleSpellChecker from "./components/SpellChecker/SpellChecker";
+import Transliterator from "./components/Transliterator/Transliterator";
+
 // Styles
 import "antd/dist/reset.css";
 import "react-toastify/dist/ReactToastify.css";
@@ -22,8 +27,6 @@ import "./styles/globals.css";
 
 // Error Boundary
 import ErrorBoundary from "./components/ErrorBoundary/ErrorBoundary";
-import SpellChecker from "./components/SpellChecker/SpellChecker";
-import Transliterator from "./components/Transliterator/Transliterator";
 
 // Theme configuration
 const createMuiTheme = (mode) =>
@@ -44,25 +47,6 @@ const createMuiTheme = (mode) =>
     typography: {
       fontFamily: "Inter, system-ui, sans-serif",
     },
-    components: {
-      MuiCssBaseline: {
-        styleOverrides: {
-          body: {
-            scrollbarColor:
-              mode === "dark" ? "#6b7280 #374151" : "#d1d5db #f9fafb",
-            "&::-webkit-scrollbar, & *::-webkit-scrollbar": {
-              backgroundColor: mode === "dark" ? "#374151" : "#f9fafb",
-              width: 8,
-            },
-            "&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb": {
-              borderRadius: 8,
-              backgroundColor: mode === "dark" ? "#6b7280" : "#d1d5db",
-              minHeight: 24,
-            },
-          },
-        },
-      },
-    },
   });
 
 // Ant Design theme
@@ -77,10 +61,10 @@ const antTheme = (isDark) => ({
     fontSize: 14,
     fontFamily: "Inter, system-ui, sans-serif",
   },
-  algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm, // Use imported theme algorithms
+  algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
 });
 
-// Main App component with theme and device detection
+// Main App component
 function AppContent() {
   const dispatch = useAppDispatch();
   const { theme } = useAppSelector((state) => state.ui);
@@ -97,8 +81,6 @@ function AppContent() {
 
     // Add event listener
     window.addEventListener("resize", handleResize);
-
-    // Cleanup
     return () => {
       window.removeEventListener("resize", handleResize);
     };
@@ -125,7 +107,7 @@ function AppContent() {
               <Layout>
                 <Routes>
                   <Route path="/" element={<Home />} />
-                  <Route path="/spellcheck" element={<SpellChecker />} />
+                  <Route path="/spellcheck" element={<SimpleSpellChecker />} />
                   <Route path="/translate" element={<Transliterator />} />
                   <Route path="/about" element={<About />} />
                   <Route path="*" element={<NotFound />} />
@@ -137,16 +119,17 @@ function AppContent() {
           {/* Toast Notifications */}
           <ToastContainer
             position="top-right"
-            autoClose={5000}
+            autoClose={4000}
             hideProgressBar={false}
-            newestOnTop={false}
+            newestOnTop={true}
             closeOnClick
             rtl={false}
-            pauseOnFocusLoss
+            pauseOnFocusLoss={false}
             draggable
             pauseOnHover
             theme={isDark ? "dark" : "light"}
             className="toast-container"
+            limit={3}
           />
         </AntApp>
       </ConfigProvider>

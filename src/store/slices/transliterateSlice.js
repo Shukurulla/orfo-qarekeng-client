@@ -1,45 +1,73 @@
+// src/store/slices/transliterateSlice.js
+
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { transliterateAPI } from "@/utils/api";
+import {
+  transliterate,
+  autoTransliterate,
+  detectScript,
+} from "@/utils/chatgptService";
 
 // Async thunks
 export const convertText = createAsyncThunk(
   "transliterate/convertText",
   async ({ text, mode = "auto" }, { rejectWithValue }) => {
     try {
-      const response = await transliterateAPI.convertText(text, mode);
-      return response.data;
+      let response;
+
+      if (mode === "auto") {
+        response = await autoTransliterate(text);
+      } else {
+        const targetScript = mode === "toLatin" ? "latin" : "cyrillic";
+        response = await transliterate(text, targetScript);
+      }
+
+      if (!response.success) {
+        return rejectWithValue(response.error);
+      }
+
+      return {
+        ...response.data,
+        mode: mode,
+      };
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || "Transliteratsiya xatosi"
-      );
+      return rejectWithValue(error.message || "Transliteratsiya xatosi");
     }
   }
 );
 
-export const detectScript = createAsyncThunk(
+export const detectTextScript = createAsyncThunk(
   "transliterate/detectScript",
   async (text, { rejectWithValue }) => {
     try {
-      const response = await transliterateAPI.detectScript(text);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || "Alifbo aniqlashda xato"
-      );
-    }
-  }
-);
+      const script = detectScript(text);
 
-export const batchConvert = createAsyncThunk(
-  "transliterate/batchConvert",
-  async ({ texts, mode = "auto" }, { rejectWithValue }) => {
-    try {
-      const response = await transliterateAPI.batchConvert(texts, mode);
-      return response.data;
+      // Statistika hisoblash
+      const cyrillicCount = (text.match(/[а-яәғқңөүһ]/gi) || []).length;
+      const latinCount = (text.match(/[a-zәğqńöüşi]/gi) || []).length;
+      const totalLetters = cyrillicCount + latinCount;
+
+      return {
+        detectedScript: script,
+        statistics: {
+          cyrillic: {
+            count: cyrillicCount,
+            percentage:
+              totalLetters > 0
+                ? ((cyrillicCount / totalLetters) * 100).toFixed(1)
+                : 0,
+          },
+          latin: {
+            count: latinCount,
+            percentage:
+              totalLetters > 0
+                ? ((latinCount / totalLetters) * 100).toFixed(1)
+                : 0,
+          },
+          total: totalLetters,
+        },
+      };
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.error || "Batch transliteratsiya xatosi"
-      );
+      return rejectWithValue(error.message || "Alifbo aniqlashda xato");
     }
   }
 );
@@ -58,16 +86,10 @@ const initialState = {
   // Loading holatlari
   isConverting: false,
   isDetecting: false,
-  isBatchConverting: false,
 
   // Xatolar
   error: null,
   detectError: null,
-  batchError: null,
-
-  // Batch konvertatsiya
-  batchResults: [],
-  batchSummary: null,
 
   // Alifbo statistikalari
   scriptStatistics: null,
@@ -76,7 +98,7 @@ const initialState = {
   history: [],
 
   // UI sozlamalari
-  showStatistics: false,
+  showStatistics: true,
   autoDetect: true,
   preserveFormatting: true,
 };
@@ -133,13 +155,6 @@ const transliterateSlice = createSlice({
     clearErrors: (state) => {
       state.error = null;
       state.detectError = null;
-      state.batchError = null;
-    },
-
-    // Batch natijalarini tozalash
-    clearBatchResults: (state) => {
-      state.batchResults = [];
-      state.batchSummary = null;
     },
 
     // Hammani tozalash
@@ -150,8 +165,6 @@ const transliterateSlice = createSlice({
       state.toScript = null;
       state.detectedScript = null;
       state.error = null;
-      state.batchResults = [];
-      state.batchSummary = null;
       state.scriptStatistics = null;
     },
 
@@ -223,36 +236,20 @@ const transliterateSlice = createSlice({
         state.error = action.payload;
       });
 
-    // detectScript
+    // detectTextScript
     builder
-      .addCase(detectScript.pending, (state) => {
+      .addCase(detectTextScript.pending, (state) => {
         state.isDetecting = true;
         state.detectError = null;
       })
-      .addCase(detectScript.fulfilled, (state, action) => {
+      .addCase(detectTextScript.fulfilled, (state, action) => {
         state.isDetecting = false;
         state.detectedScript = action.payload.detectedScript;
         state.scriptStatistics = action.payload.statistics;
       })
-      .addCase(detectScript.rejected, (state, action) => {
+      .addCase(detectTextScript.rejected, (state, action) => {
         state.isDetecting = false;
         state.detectError = action.payload;
-      });
-
-    // batchConvert
-    builder
-      .addCase(batchConvert.pending, (state) => {
-        state.isBatchConverting = true;
-        state.batchError = null;
-      })
-      .addCase(batchConvert.fulfilled, (state, action) => {
-        state.isBatchConverting = false;
-        state.batchResults = action.payload.results;
-        state.batchSummary = action.payload.summary;
-      })
-      .addCase(batchConvert.rejected, (state, action) => {
-        state.isBatchConverting = false;
-        state.batchError = action.payload;
       });
   },
 });
@@ -267,7 +264,6 @@ export const {
   setAutoDetect,
   setPreserveFormatting,
   clearErrors,
-  clearBatchResults,
   clearAll,
   addToHistory,
   loadFromHistory,

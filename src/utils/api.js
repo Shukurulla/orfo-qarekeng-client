@@ -2,18 +2,18 @@ import axios from "axios";
 
 // Base API configuration
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+  import.meta.env.REACT_APP_API_URL || "http://localhost:3000/api";
 
 // Create axios instance
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 30000, // 30 sekund (timeout oshirildi)
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Request interceptor
+// Request interceptor - YANGILANGAN
 apiClient.interceptors.request.use(
   (config) => {
     // Add timestamp to prevent caching
@@ -21,6 +21,9 @@ apiClient.interceptors.request.use(
       ...config.params,
       _t: Date.now(),
     };
+
+    // Performance monitoring
+    config.metadata = { startTime: Date.now() };
 
     console.log(
       `🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`
@@ -33,14 +36,22 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor - YANGILANGAN
 apiClient.interceptors.response.use(
   (response) => {
+    // Performance logging
+    const duration = Date.now() - response.config.metadata.startTime;
     console.log(
       `✅ API Response: ${response.config.method?.toUpperCase()} ${
         response.config.url
-      } - ${response.status}`
+      } - ${response.status} (${duration}ms)`
     );
+
+    // Cache info logging
+    if (response.data.fromCache) {
+      console.log("💾 Response from cache");
+    }
+
     return response;
   },
   (error) => {
@@ -82,9 +93,9 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Spell Check API
+// Spell Check API - YANGILANGAN
 export const spellCheckAPI = {
-  // Matn imlosini tekshirish
+  // Matn imlosini tekshirish - OPTIMIZATSIYA QILINGAN
   checkText: (text, options = {}) => {
     return apiClient.post("/check", { text, options });
   },
@@ -106,13 +117,23 @@ export const spellCheckAPI = {
     return apiClient.post("/check/batch", { words });
   },
 
+  // Avtomatik to'g'rilash - YANGI
+  autoCorrect: (text) => {
+    return apiClient.post("/check/auto-correct", { text });
+  },
+
   // Cache yangilash
   refreshCache: () => {
     return apiClient.post("/check/refresh-cache");
   },
+
+  // Performance statistikasi - YANGI
+  getStats: () => {
+    return apiClient.get("/check/stats");
+  },
 };
 
-// Transliterate API
+// Transliterate API - YANGILANGAN
 export const transliterateAPI = {
   // Matnni transliteratsiya qilish
   convertText: (text, mode = "auto") => {
@@ -181,7 +202,7 @@ export const healthAPI = {
   },
 };
 
-// Helper functions
+// Helper functions - YANGILANGAN
 export const apiHelpers = {
   // Xato xabarini formatlash
   formatError: (error) => {
@@ -222,19 +243,113 @@ export const apiHelpers = {
     return urlParams.toString();
   },
 
-  // Retry mechanism
+  // Retry mechanism - YAXSHILANGAN
   retry: async (fn, retries = 3, delay = 1000) => {
     for (let i = 0; i < retries; i++) {
       try {
         return await fn();
       } catch (error) {
         if (i === retries - 1) throw error;
-        await new Promise((resolve) =>
-          setTimeout(resolve, delay * Math.pow(2, i))
-        );
+
+        // Exponential backoff
+        const backoffDelay = delay * Math.pow(2, i);
+        console.log(`Retry attempt ${i + 1} after ${backoffDelay}ms`);
+
+        await new Promise((resolve) => setTimeout(resolve, backoffDelay));
       }
     }
   },
+
+  // Debounced API call - YANGI
+  createDebouncedApiCall: (apiFunction, delay = 300) => {
+    let timeoutId;
+    return (...args) => {
+      return new Promise((resolve, reject) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(async () => {
+          try {
+            const result = await apiFunction(...args);
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        }, delay);
+      });
+    };
+  },
+
+  // Cache wrapper - YANGI
+  withCache: (apiFunction, cacheKey, ttl = 300000) => {
+    // 5 minut default
+    const cache = new Map();
+
+    return async (...args) => {
+      const key = `${cacheKey}_${JSON.stringify(args)}`;
+      const cached = cache.get(key);
+
+      if (cached && Date.now() - cached.timestamp < ttl) {
+        console.log(`💾 Cache hit for ${key}`);
+        return cached.data;
+      }
+
+      try {
+        const result = await apiFunction(...args);
+        cache.set(key, {
+          data: result,
+          timestamp: Date.now(),
+        });
+
+        // Cache cleanup (har 100 ta entry dan keyin)
+        if (cache.size > 100) {
+          const oldestKey = cache.keys().next().value;
+          cache.delete(oldestKey);
+        }
+
+        return result;
+      } catch (error) {
+        throw error;
+      }
+    };
+  },
+
+  // Performance monitoring - YANGI
+  measurePerformance: (apiFunction, name) => {
+    return async (...args) => {
+      const startTime = performance.now();
+      try {
+        const result = await apiFunction(...args);
+        const duration = performance.now() - startTime;
+        console.log(`⚡ ${name} took ${duration.toFixed(2)}ms`);
+        return result;
+      } catch (error) {
+        const duration = performance.now() - startTime;
+        console.log(`❌ ${name} failed after ${duration.toFixed(2)}ms`);
+        throw error;
+      }
+    };
+  },
+};
+
+// Optimized API calls - YANGI
+export const optimizedAPI = {
+  // Debounced spell check
+  debouncedSpellCheck: apiHelpers.createDebouncedApiCall(
+    spellCheckAPI.checkText,
+    500
+  ),
+
+  // Cached word suggestions
+  cachedSuggestions: apiHelpers.withCache(
+    spellCheckAPI.getSuggestions,
+    "suggestions",
+    600000 // 10 minut
+  ),
+
+  // Performance monitored auto-correct
+  monitoredAutoCorrect: apiHelpers.measurePerformance(
+    spellCheckAPI.autoCorrect,
+    "AutoCorrect"
+  ),
 };
 
 // Export default API client
