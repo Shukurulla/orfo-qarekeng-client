@@ -18,7 +18,7 @@ const chatgptClient = axios.create({
 // Alifbo aniqlash
 export const detectScript = (text) => {
   const cyrillicCount = (text.match(/[а-яәғқңөүһ]/gi) || []).length;
-  const latinCount = (text.match(/[a-zәğqńöüşi]/gi) || []).length;
+  const latinCount = (text.match(/[a-zәğqńöüşiı]/gi) || []).length;
 
   if (cyrillicCount > latinCount) return "cyrillic";
   if (latinCount > cyrillicCount) return "latin";
@@ -28,41 +28,55 @@ export const detectScript = (text) => {
 // Imlo tekshirish uchun ChatGPT so'rovi
 export const checkSpelling = async (text) => {
   const script = detectScript(text);
-  const language =
-    script === "cyrillic"
-      ? "қарақалпақ тилинде кирилл әлипбесинде"
-      : "qaraqalpaq tilinde lotin alifbosida";
+  const isLatin = script === "latin";
 
-  const prompt = `
-Мен ${language} жазылған мәтинди имла текшерувин сорайман.
+  const prompt = isLatin
+    ? `Qaraqalpaq tilinde lotin alifbosida yozilgan matnni imlo tekshiruv qiling.
 
-Мәтин: "${text}"
+Matn: "${text}"
 
-Сизден мына тапсырманы орындаўыңызды сорайман:
-1. Барлық сөзлерди тексерип, имла хатасы бар сөзлерди анықлаң
-2. Әр хатасы бар сөз үшин 3-5 дурыс вариант усыныс бериң
-3. Жаўапты міндетли түрде JSON форматында бериң
+Vazifa:
+1. Barcha so'zlarni tekshiring va imlo xatolarini aniqlang
+2. Har bir xato so'z uchun bitta to'g'ri variant bering
+3. Javobni JSON formatda bering
 
-JSON форматы:
+JSON format:
 {
   "results": [
     {
-      "word": "хатасы бар сөз",
+      "word": "xato_so'z",
       "isCorrect": false,
-      "suggestions": ["дурыс1", "дурыс2", "дурыс3"],
-      "start": басталыў_позициясы,
-      "end": аяқталыў_позициясы
+      "suggestions": ["to'g'ri_variant"],
+      "start": boshlanish_pozitsiyasi,
+      "end": tugash_pozitsiyasi
     }
-  ],
-  "statistics": {
-    "totalWords": барлық_сөз_саны,
-    "correctWords": дурыс_сөзлер_саны,
-    "incorrectWords": хатасы_бар_сөзлер_саны,
-    "accuracy": анықлық_пайызы
-  }
+  ]
 }
 
-Тек JSON форматында жаўап бериң, қосымша түсиндирме берме.`;
+Faqat JSON formatda javob bering.`
+    : `Қарақалпақ тилинде кирилл әлипбесинде жазылған мәтинди имло текшерув қылың.
+
+Мәтин: "${text}"
+
+Вазифа:
+1. Барлық сөзлерди текшериң ҳәм имло хаталарын анықлаң
+2. Ҳәр бир хата сөз ушын битте дурыс вариант бериң
+3. Жаўапты JSON форматда бериң
+
+JSON формат:
+{
+  "results": [
+    {
+      "word": "хата_сөз",
+      "isCorrect": false,
+      "suggestions": ["дурыс_вариант"],
+      "start": басланыс_позициясы,
+      "end": туғас_позициясы
+    }
+  ]
+}
+
+Тек JSON форматда жаўап бериң.`;
 
   try {
     const response = await chatgptClient.post("", {
@@ -70,7 +84,9 @@ JSON форматы:
       messages: [
         {
           role: "system",
-          content: `Сіз қарақалпақ тілінің мамандыктуғы имла текшерувшісіз. Сіз тек JSON форматында жауап берасіз.`,
+          content: isLatin
+            ? "Siz qaraqalpaq tili imlo tekshiruvchisisiz. Faqat JSON formatda javob berasiz."
+            : "Сиз қарақалпақ тили имло текшерившисиз. Тек JSON форматда жаўап бересиз.",
         },
         {
           role: "user",
@@ -96,6 +112,23 @@ JSON форматы:
             item.end = match.index + item.word.length;
           }
         });
+
+        // Statistics qo'shish
+        const totalWords = text.split(/\s+/).filter((w) => w.length > 0).length;
+        const incorrectWords = result.results.filter(
+          (r) => !r.isCorrect
+        ).length;
+
+        result.statistics = {
+          totalWords: totalWords,
+          correctWords: totalWords - incorrectWords,
+          incorrectWords: incorrectWords,
+          accuracy:
+            totalWords > 0
+              ? (((totalWords - incorrectWords) / totalWords) * 100).toFixed(1)
+              : 100,
+          textLength: text.length,
+        };
       }
 
       return {
@@ -123,23 +156,19 @@ JSON форматы:
 // Matnni to'liq to'g'irlash
 export const correctText = async (text) => {
   const script = detectScript(text);
-  const language =
-    script === "cyrillic"
-      ? "қарақалпақ тилинде кирилл әлипбесинде"
-      : "qaraqalpaq tilinde lotin alifbosida";
+  const isLatin = script === "latin";
 
-  const prompt = `
-Мен ${language} жазылған мәтинди толық имла хаталарынан тазалаўды сорайман.
+  const prompt = isLatin
+    ? `Qaraqalpaq tilinde lotin alifbosida yozilgan matndagi barcha imlo xatolarini to'g'irlang.
+
+Matn: "${text}"
+
+Faqat to'g'irlangan matnni qaytaring, qo'shimcha tushuntirish bermang.`
+    : `Қарақалпақ тилинде кирилл әлипбесинде жазылған мәтиндеги барлық имло хаталарын дүзетиң.
 
 Мәтин: "${text}"
 
-Тапсырма:
-1. Барлық имла хаталарын түзетиң
-2. Тек хаталарды түзетип, мәтинниң мағынасын өзгертпеиң
-3. Сөзлердиң орналасыў ретин сақлаиң
-4. Тыныс белгилерин дурыс қойың
-
-Жаўапты тек түзетилген мәтин түринде бериң, қосымша түсиндирме қоспаиң.`;
+Тек дүзетилген мәтинди қайтарың, қосымша түсиндирме бермең.`;
 
   try {
     const response = await chatgptClient.post("", {
@@ -147,7 +176,9 @@ export const correctText = async (text) => {
       messages: [
         {
           role: "system",
-          content: `Сиз қарақалпақ тилиниң маманлықтуғы редакторысыз. Сиз тек түзетилген мәтинди қайтарасыз.`,
+          content: isLatin
+            ? "Siz qaraqalpaq tili muharriri. Faqat to'g'irlangan matnni qaytarasiz, boshqa hech narsa yozmaysiz."
+            : "Сиз қарақалпақ тили муҳаррири. Тек дүзетилген мәтинди қайтарасыз, басқа ҳеш нәрсе жазбайсыз.",
         },
         {
           role: "user",
@@ -194,28 +225,25 @@ export const transliterate = async (text, targetScript) => {
     };
   }
 
-  const fromLang = sourceScript === "cyrillic" ? "кирилл" : "lotin";
-  const toLang = targetScript === "cyrillic" ? "кирилл" : "lotin";
+  const isToLatin = targetScript === "latin";
 
-  const prompt = `
-Мен қарақалпақ тіліндегі мәтінді ${fromLang} әлипбесінен ${toLang} әлипбесіне аударуды сұрайман.
+  const prompt = isToLatin
+    ? `Qoraqalpaq tilindegi kirill alifbosidagi matnni lotin alifbosiga o'tkazing.
 
-Мәтін: "${text}"
+Matn: "${text}"
 
-Қағидаттар:
-${
-  targetScript === "latin"
-    ? `
-Кирилл -> Lotin:
-а->a, ә->ә, б->b, в->v, г->g, ғ->ğ, д->d, е->e, ж->j, з->z, и->ı, й->y, к->k, қ->q, л->l, м->m, н->n, ң->ń, о->o, ө->ö, п->p, р->r, с->s, т->t, у->w, ү->ü, ф->f, х->x, ц->ts, ч->sh, ш->ş, ы->ı, э->e, ю->yu, я->ya
-`
-    : `
-Lotin -> Кирилл:
-a->а, ә->ә, b->б, v->в, g->г, ğ->ғ, d->д, e->е, j->ж, z->з, ı->и, i->и, y->й, k->к, q->қ, l->л, m->м, n->н, ń->ң, o->о, ö->ө, p->п, r->р, s->с, t->т, w->у, ü->ү, f->ф, x->х, ts->ц, sh->ч, ş->ш
-`
-}
+Qoidalar:
+а→a, ә→á, б→b, в→v, г→g, ғ→ǵ, д→d, е→e, ё→yo, ж→j, з→z, и→i, й→y, к→k, қ→q, л→l, м→m, н→n, ң→ń, о→o, ө→ó, п→p, р→r, с→s, т→t, у→u, ү→ú, ў→w, ф→f, х→x, ҳ→h, ц→c, ч→ch, ш→sh, щ→sh, ъ→', ы→ı, ь→, э→e, ю→yu, я→ya
 
-Тек аударылған мәтінді беріц, қосымша түсіндірме қоспаіц.`;
+Faqat o'tkazilgan matnni bering.`
+    : `Qaraqalpaq tilindegi lotin alifbosidagi matnni kirill alifbosiga o'tkazing.
+
+Matn: "${text}"
+
+Qoidalar:
+a→а, á→ә, b→б, v→в, g→г, ǵ→ғ, d→д, e→е, j→ж, z→з, i→и, ı→ы, y→й, k→к, q→қ, l→л, m→м, n→н, ń→ң, o→о, ó→ө, p→п, r→р, s→с, t→т, u→у, ú→ү, w→ў, f→ф, x→х, h→ҳ, c→ц, ch→ч, sh→ш
+
+Faqat o'tkazilgan matnni bering.`;
 
   try {
     const response = await chatgptClient.post("", {
@@ -223,7 +251,8 @@ a->а, ә->ә, b->б, v->в, g->г, ğ->ғ, d->д, e->е, j->ж, z->з, ı->и, 
       messages: [
         {
           role: "system",
-          content: `Сиз қарақалпақ тили транслитераторысыз. Сиз тек аўдарылған мәтинди қайтарасыз.`,
+          content:
+            "Siz qaraqalpaq tili transliteratori. Faqat o'tkazilgan matnni qaytarasiz.",
         },
         {
           role: "user",
