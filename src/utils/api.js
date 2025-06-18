@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Base API configuration
 const API_BASE_URL =
-  import.meta.env.REACT_APP_API_URL || "http://localhost:3000/api";
+  import.meta.env.REACT_APP_API_URL || "http://localhost:4343/api";
 
 // Create axios instance
 const apiClient = axios.create({
