@@ -61,6 +61,7 @@ const SpellChecker = () => {
     setMistakes([]);
     setStatistics(null);
   }, []);
+
   useEffect(() => {
     console.log(mistakes);
   }, [mistakes]);
@@ -244,6 +245,7 @@ const SpellChecker = () => {
     if (textAreaRef.current) {
       textAreaRef.current.focus();
     }
+    message.info("Hammasi tozalandi");
   }, []);
 
   // So'zni almashtirish
@@ -267,88 +269,85 @@ const SpellChecker = () => {
     [originalText]
   );
 
-  // YANGILANGAN: Highlighted text yaratish - har bir so'zni alohida tekshirish
-  const createHighlightedText = useCallback(() => {
-    if (!hasChecked || !results.length || !originalText) {
+  // YANGI: Tekshirilgan matnni render qilish
+  const renderCheckedText = useCallback(() => {
+    if (!originalText || !mistakes.length) {
       return originalText;
     }
 
-    // Xato so'zlarni Set obyektiga saqlash (tezroq qidirish uchun)
-    const errorWordsSet = new Set();
-    results
-      .filter((result) => !result.isCorrect)
-      .forEach((result) => {
-        if (result.word) {
-          // Kichik harflar bilan saqlash
-          errorWordsSet.add(result.word.toLowerCase().trim());
-        }
-      });
-
-    if (errorWordsSet.size === 0) {
-      return originalText;
-    }
-
-    console.log("Error words set:", Array.from(errorWordsSet)); // Debug uchun
-
-    // Regex orqali so'zlarni topish va xato so'zlarni highlight qilish
-    // Kirill va lotin harflarini qo'llab-quvvatlovchi regex
-    return originalText.replace(/\b[\wА-Яа-яЁёЎўҚқҒғҲҳҞҟӮӯ]+\b/g, (match) => {
-      const cleanWord = match.toLowerCase().trim();
-
-      if (errorWordsSet.has(cleanWord)) {
-        return `<span class="spell-error" title="Xato so'z: ${match}" data-word="${cleanWord}" data-original="${match}">${match}</span>`;
-      }
-
-      return match;
+    // Xato so'zlarning ro'yxatini yaratish
+    const errorWords = new Set();
+    mistakes.forEach((mistake) => {
+      errorWords.add(mistake.mistakeWord.toLowerCase().trim());
     });
-  }, [originalText, results, hasChecked]);
 
-  // Xato so'zga click qilganda takliflarni ko'rsatish
-  const handleErrorWordClick = useCallback(
+    // Matnni so'zlar bo'yicha ajratish
+    const words = originalText.split(/(\s+)/); // Oraliq bo'shliqlarni ham saqlash
+
+    return words.map((word, index) => {
+      const cleanWord = word
+        .trim()
+        .toLowerCase()
+        .replace(/[.,!?;:"'()]/g, "");
+
+      if (errorWords.has(cleanWord) && word.trim()) {
+        // Xato so'z - qizil tagiga chiziq bilan
+        return (
+          <span
+            key={index}
+            className="spell-error"
+            data-word={cleanWord}
+            style={{
+              textDecoration: "underline",
+              textDecorationStyle: "wavy",
+              textDecorationColor: "#ff4d4f",
+              textDecorationThickness: "2px",
+              backgroundColor: "rgba(255, 77, 79, 0.1)",
+              cursor: "pointer",
+              borderRadius: "2px",
+              padding: "1px 2px",
+            }}
+          >
+            {word}
+          </span>
+        );
+      } else {
+        // Oddiy so'z yoki bo'shliq
+        return <span key={index}>{word}</span>;
+      }
+    });
+  }, [originalText, mistakes]);
+
+  // YANGI: Tekshirilgan matndagi so'zga click qilish
+  const handleCheckedTextClick = useCallback(
     (event) => {
-      event.preventDefault();
-      const errorSpan = event.target.closest(".spell-error");
-      if (!errorSpan) return;
-
-      const originalWord = errorSpan.dataset.original;
-      const mistake = mistakes.find(
-        (m) => m.mistakeWord.toLowerCase() === originalWord.toLowerCase()
-      );
-
-      if (mistake && mistake.similarWords.length > 0) {
-        const suggestions = mistake.similarWords.slice(0, 3);
-        const suggestionText = suggestions
-          .map((s) => `${s.word} (${s.similarity}%)`)
-          .join("\n");
-
-        const confirmed = window.confirm(
-          `"${mistake.mistakeWord}" so'zi uchun takliflar:\n\n${suggestionText}\n\nEng yaxshi taklifni ("${suggestions[0].word}") qo'llashni istaysizmi?`
+      const target = event.target;
+      if (target.classList.contains("spell-error")) {
+        const wordData = target.dataset.word;
+        const mistake = mistakes.find(
+          (m) => m.mistakeWord.toLowerCase() === wordData
         );
 
-        if (confirmed) {
-          handleReplaceWord(mistake.mistakeWord, suggestions[0].word);
+        if (mistake && mistake.similarWords.length > 0) {
+          const suggestions = mistake.similarWords.slice(0, 3);
+          const suggestionText = suggestions
+            .map((s) => `${s.word} (${s.similarity}%)`)
+            .join("\n");
+
+          const confirmed = window.confirm(
+            `"${mistake.mistakeWord}" so'zi uchun takliflar:\n\n${suggestionText}\n\nEng yaxshi taklifni ("${suggestions[0].word}") qo'llashni istaysizmi?`
+          );
+
+          if (confirmed) {
+            handleReplaceWord(mistake.mistakeWord, suggestions[0].word);
+          }
+        } else {
+          message.info(`"${mistake.mistakeWord}" so'zi uchun taklif topilmadi`);
         }
-      } else {
-        message.info(`"${originalWord}" so'zi uchun taklif topilmadi`);
       }
     },
     [mistakes, handleReplaceWord]
   );
-
-  // Click event listener qo'shish
-  useEffect(() => {
-    const handleClick = (event) => {
-      if (event.target.classList.contains("spell-error")) {
-        handleErrorWordClick(event);
-      }
-    };
-
-    document.addEventListener("click", handleClick);
-
-    return () => {
-      document.removeEventListener("click", handleClick);
-    };
-  }, [handleErrorWordClick]);
 
   return (
     <div className="p-4 lg:p-6 h-full">
@@ -514,37 +513,38 @@ const SpellChecker = () => {
 
               {/* Text Editor */}
               <div className="relative">
-                {/* Highlighted text overlay */}
-                {hasChecked && results.length > 0 && (
-                  <div
-                    className="absolute inset-0 pointer-events-none z-10 p-2 border border-transparent rounded overflow-hidden whitespace-pre-wrap"
+                {/* Normal textarea - ko'rinadi agar tekshirilmagan bo'lsa */}
+                {!hasChecked && (
+                  <textarea
+                    ref={textAreaRef}
+                    value={originalText}
+                    onChange={handleTextChange}
+                    placeholder="Bu yerda Qoraqalpoq tilida matn yozing... (RapidAPI Gemini Pro yordami bilan)"
+                    className="w-full min-h-[400px] p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
                     style={{
                       fontSize: "14px",
                       lineHeight: "1.5715",
                       fontFamily: "inherit",
-                      color: "transparent",
-                      pointerEvents: "auto", // Click eventi uchun
-                    }}
-                    dangerouslySetInnerHTML={{
-                      __html: createHighlightedText(),
                     }}
                   />
                 )}
 
-                <textarea
-                  ref={textAreaRef}
-                  value={originalText}
-                  onChange={handleTextChange}
-                  placeholder="Bu yerda Qoraqalpoq tilida matn yozing... (RapidAPI Gemini Pro yordami bilan)"
-                  className={`w-full min-h-[400px] p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    hasChecked ? "relative z-20 bg-transparent" : ""
-                  }`}
-                  style={{
-                    fontSize: "14px",
-                    lineHeight: "1.5715",
-                    fontFamily: "inherit",
-                  }}
-                />
+                {/* Checked text display - ko'rinadi agar tekshirilgan bo'lsa */}
+                {hasChecked && (
+                  <div
+                    className="w-full min-h-[400px] p-2 border border-gray-300 rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white cursor-text overflow-auto"
+                    style={{
+                      fontSize: "14px",
+                      lineHeight: "1.5715",
+                      fontFamily: "inherit",
+                      whiteSpace: "pre-wrap",
+                      wordWrap: "break-word",
+                    }}
+                    onClick={handleCheckedTextClick}
+                  >
+                    {renderCheckedText()}
+                  </div>
+                )}
               </div>
 
               {/* Text Statistics */}
@@ -796,39 +796,33 @@ const SpellChecker = () => {
       {/* Custom CSS for spell error highlighting */}
       <style jsx>{`
         :global(.spell-error) {
-          background-color: rgba(255, 77, 79, 0.2);
-          border-bottom: 2px wavy #ff4d4f;
-          border-radius: 2px;
-          padding: 1px 2px;
-          margin: 0 1px;
-          cursor: pointer;
           transition: all 0.2s ease;
           position: relative;
-          display: inline-block;
+          display: inline;
         }
 
         :global(.spell-error:hover) {
-          background-color: rgba(255, 77, 79, 0.3);
+          background-color: rgba(255, 77, 79, 0.2) !important;
           transform: translateY(-1px);
           box-shadow: 0 2px 4px rgba(255, 77, 79, 0.3);
         }
 
         :global(.spell-error:active) {
           transform: translateY(0);
-          background-color: rgba(255, 77, 79, 0.4);
+          background-color: rgba(255, 77, 79, 0.3) !important;
         }
 
         :global(.dark .spell-error) {
-          background-color: rgba(255, 77, 79, 0.15);
+          background-color: rgba(255, 77, 79, 0.08) !important;
         }
 
         :global(.dark .spell-error:hover) {
-          background-color: rgba(255, 77, 79, 0.25);
+          background-color: rgba(255, 77, 79, 0.15) !important;
         }
 
         /* Tooltip style */
         :global(.spell-error::after) {
-          content: attr(title);
+          content: "Xato so'z - bosing";
           position: absolute;
           bottom: 100%;
           left: 50%;
