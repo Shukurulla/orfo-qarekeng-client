@@ -1,4 +1,4 @@
-// src/utils/geminiService.js
+// src/utils/OrfoAIService.js
 
 import axios from "axios";
 
@@ -335,6 +335,367 @@ export const autoTransliterate = async (text) => {
   const targetScript = sourceScript === "cyrillic" ? "latin" : "cyrillic";
 
   return await transliterate(text, targetScript);
+};
+
+// Matnni yaxshilash - ma'nosini o'zgartirmasdan mukammallashtirish
+export const improveText = async (text, options = {}) => {
+  const {
+    language = "uz",
+    script,
+    style = "professional",
+    level = 3,
+  } = options;
+
+  const langMap = {
+    uz: "o'zbek",
+    kaa: "qoraqalpoq",
+    ru: "rus",
+  };
+
+  const styleMap = {
+    professional: {
+      uz: "professional va rasmiy",
+      kaa: "профессионал ҳәм расмий",
+      ru: "профессиональный и официальный",
+    },
+    academic: {
+      uz: "ilmiy va akademik",
+      kaa: "ғылыми ҳәм академиялық",
+      ru: "научный и академический",
+    },
+    literary: {
+      uz: "adabiy va go'zal",
+      kaa: "әдебий ҳәм сулыў",
+      ru: "литературный и красивый",
+    },
+    formal: {
+      uz: "rasmiy va qat'iy",
+      kaa: "расмий ҳәм қатъий",
+      ru: "официальный и строгий",
+    },
+    friendly: {
+      uz: "do'stona va samimiy",
+      kaa: "достлық ҳәм самимий",
+      ru: "дружелюбный и искренний",
+    },
+  };
+
+  const levelMap = {
+    1: {
+      uz: "minimal o'zgarish - faqat eng zarur",
+      kaa: "минимал өзгериў - тек ең қәжет",
+      ru: "минимальные изменения - только самое необходимое",
+    },
+    2: {
+      uz: "engil yaxshilash",
+      kaa: "жеңил жақсылластырыў",
+      ru: "легкое улучшение",
+    },
+    3: {
+      uz: "o'rtacha yaxshilash",
+      kaa: "орташа жақсылластырыў",
+      ru: "среднее улучшение",
+    },
+    4: {
+      uz: "kuchli yaxshilash",
+      kaa: "күшли жақсылластырыў",
+      ru: "сильное улучшение",
+    },
+    5: {
+      uz: "maksimal yaxshilash - to'liq qayta ishlash",
+      kaa: "максимал жақсылластырыў - толық қайта ишлеү",
+      ru: "максимальное улучшение - полная переработка",
+    },
+  };
+
+  const langName = langMap[language] || "o'zbek";
+  const styleDesc =
+    styleMap[style]?.[language] || styleMap.professional[language];
+  const levelDesc = levelMap[level]?.[language] || levelMap[3][language];
+
+  let prompt = "";
+
+  if (language === "uz") {
+    prompt = `Siz professional matn muharriri va yozuvchi siz. Quyidagi matnni yaxshilang va mukammallashtiring.
+
+Asl matn: "${text}"
+
+Vazifangiz:
+1. Matn ma'nosini mutlaqo o'zgartirmang
+2. Asosiy g'oyalarni saqlang
+3. Yozuv sifatini oshiring va ${styleDesc} uslubda qayta yozing
+4. ${levelDesc} qiling
+5. Grammatik va uslubiy xatolarni to'g'rilang
+6. Matnni yanada aniq, tushunarli va ta'sirli qiling
+7. O'zbek tilida mukammal imloviy to'g'rilik bilan yozing
+
+Qoidalar:
+- Matnning asosiy ma'nosini o'zgartirmang
+- Faktlarni o'zgartirmang  
+- Faqat yozuv sifatini yaxshilang
+- Professional va adabiy til ishlatring
+- Takrorlarni kamaytiring
+- Matnni ravon va o'qishli qiling
+
+Faqat yaxshilangan matnni qaytaring, boshqa tushuntirish bermang. iltimos javobni ${script} uslubda yozing`;
+  } else if (language === "kaa") {
+    prompt = `Сиз профессионал мәтин муҳаррири ҳәм жазыўшысыз. Төмендеги мәтинди жақсыластырың ҳәм мукәммәллестириң.
+
+Асыл мәтин: "${text}"
+
+Сиздиң ўазыйпаңыз:
+1. Мәтин мәнисин мутлақ өзгертпең
+2. Тийкарғы идеяларды сақлаң
+3. Жазыў сапасын көтериң ҳәм ${styleDesc} услубта қайта жазың
+4. ${levelDesc} қылың
+5. Грамматикалық ҳәм услубий қәтелерди дүзетиң
+6. Мәтинди одан да анық, түсиникли ҳәм тәсирли қылың
+7. Қарақалпақ тилинде мукәммәл имлалық дурыслық пенен жазың
+
+Қағыйдалар:
+- Мәтинниң тийкарғы мәнисин өзгертпең
+- Фактларды өзгертпең
+- Тек жазыў сапасын жақсыластырың
+- Профессионал ҳәм әдебий тил қоллаң
+- Тақырарларды азайтың
+- Мәтинди раўан ҳәм оқылыслы қылың
+ 
+Тек жақсыластырылған мәтинди қайтарың, басқа түсиндирме бериң. Илтимас, қарақалпақ тилинде профессионал болсын. Және әлипбе ${script} болсын.`;
+  } else {
+    prompt = `Вы профессиональный редактор и писатель. Улучшите и усовершенствуйте следующий текст.
+
+Исходный текст: "${text}"
+
+Ваша задача:
+1. Не изменяйте смысл текста ни в коем случае
+2. Сохраните основные идеи
+3. Повысьте качество письма и перепишите в ${styleDesc} стиле
+4. Выполните ${levelDesc}
+5. Исправьте грамматические и стилистические ошибки
+6. Сделайте текст более точным, понятным и эффективным
+7. Пишите с безупречной орфографической правильностью на русском языке
+
+Правила:
+- Не изменяйте основной смысл текста
+- Не изменяйте факты
+- Улучшайте только качество письма
+- Используйте профессиональный и литературный язык
+- Уменьшите повторы
+- Сделайте текст плавным и читаемым
+
+Верните только улучшенный текст, без дополнительных объяснений.`;
+  }
+
+  try {
+    const improvedText = await sendGeminiRequest(prompt);
+
+    return {
+      success: true,
+      data: {
+        original: text,
+        improved: improvedText.trim(),
+        language: language,
+        style: style,
+        level: level,
+        improved_at: new Date().toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error("Text improvement error:", error);
+    return {
+      success: false,
+      error: error.message || "Matn yaxshilashda xato",
+    };
+  }
+};
+
+// Matnni tekshirish - yuridik hujjat yaratish uchun mos yoki yo'qligini aniqlash
+export const validateInput = async (text, language = "uz") => {
+  const langMap = {
+    uz: "o'zbek",
+    kaa: "qoraqalpoq",
+    ru: "rus",
+  };
+
+  const langName = langMap[language] || "o'zbek";
+
+  const prompt = `Siz professional matn tahlilchisiz. Quyidagi matnni tahlil qiling va yuridik hujjat (shartnoma, kelishuv, ariza, va hokazo) yaratish uchun mos yoki yo'qligini aniqlang.
+
+Matn: "${text}"
+Til: ${langName}
+
+Tekshirish mezonlari:
+1. Matn ma'noli va tushunarli bo'lishi kerak
+2. Aniq bir mavzu yoki maqsadga tegishli bo'lishi kerak 
+3. "dasdasda", "test", "aaa" kabi ma'nosiz matnlar bo'lmasligi kerak
+4. Yuridik hujjat yaratish uchun yetarli ma'lumot bo'lishi kerak
+5. Kamida 2-3 ta asosiy g'oya yoki faktni o'z ichiga olishi kerak
+
+Javob formatini JSON ko'rinishida bering:
+{
+  "isValid": true/false,
+  "reason": "nima uchun mos/mos emas",
+  "suggestions": ["taklif 1", "taklif 2", "taklif 3"],
+  "topic": "matn mavzusi",
+  "confidence": 85
+}
+
+Faqat JSON formatda javob bering.`;
+
+  try {
+    const content = await sendGeminiRequest(prompt);
+    console.log("Validation response:", content);
+
+    const parsedResult = cleanAndParseJSON(content);
+
+    return {
+      success: true,
+      data: parsedResult,
+    };
+  } catch (error) {
+    console.error("Validation error:", error);
+    return {
+      success: false,
+      error: error.message || "Matn tekshirishda xato",
+    };
+  }
+};
+
+// Yuridik hujjat yaratish
+export const generateDocument = async (
+  inputText,
+  documentType,
+  language = "uz"
+) => {
+  const langMap = {
+    uz: {
+      name: "o'zbek",
+      sample: "Rasmiy hujjat namunasi o'zbek tilida",
+    },
+    kaa: {
+      name: "qoraqalpoq",
+      sample: "Расмий ҳужжат намунаси қарақалпақ тилинде",
+    },
+    ru: {
+      name: "rus",
+      sample: "Образец официального документа на русском языке",
+    },
+  };
+
+  const docTypeMap = {
+    contract:
+      language === "uz"
+        ? "Shartnoma"
+        : language === "kaa"
+        ? "Шартнама"
+        : "Договор",
+    agreement:
+      language === "uz"
+        ? "Kelishuv"
+        : language === "kaa"
+        ? "Келисув"
+        : "Соглашение",
+    statement:
+      language === "uz"
+        ? "Bayonot"
+        : language === "kaa"
+        ? "Баянат"
+        : "Заявление",
+    application:
+      language === "uz" ? "Ariza" : language === "kaa" ? "Ариза" : "Заявление",
+    complaint:
+      language === "uz" ? "Shikoyat" : language === "kaa" ? "Шикоят" : "Жалоба",
+  };
+
+  const selectedLang = langMap[language] || langMap.uz;
+  const docTypeName = docTypeMap[documentType] || docTypeMap.contract;
+
+  let prompt = "";
+
+  if (language === "uz") {
+    prompt = `Siz professional yuridik hujjat yozuvchi siz. Quyidagi ma'lumotlar asosida rasmiy "${docTypeName}" hujjatini o'zbek tilida yarating.
+
+Asosiy ma'lumotlar: "${inputText}"
+
+Hujjat talablari:
+1. Rasmiy yuridik format va til ishlatilishi
+2. Barcha kerakli bo'limlar mavjud bo'lishi (sarlavha, asosiy qism, imzo joyi)
+3. Professional va aniq ifodalar
+4. Sana va joy uchun bo'sh joylar qoldirish
+5. Hujjat yuridik jihatdan to'g'ri va amal qiladigan bo'lishi
+6. O'zbek tilida imloviy xatosiz yozilishi
+
+Hujjat strukturasi:
+- Sarlavha
+- Tomonlar (agar kerak bo'lsa)
+- Asosiy mazmun
+- Shartlar (agar kerak bo'lsa)  
+- Sanalar va imzo joylari
+
+Faqat tayyor hujjat matnini qaytaring, boshqa tushuntirish bermang.`;
+  } else if (language === "kaa") {
+    prompt = `Сиз профессионал юридикалық ҳужжат жазуўшысыз. Төмендеги мағлыўматлар асасында расмий "${docTypeName}" ҳужжатын қарақалпақ тилинде жаратың.
+
+Асосий мағлыўматлар: "${inputText}"
+
+Ҳужжат талаплары:
+1. Расмий юридикалық формат ҳәм тил қолланылыўы
+2. Барлық қәжетли бөлимлер мәвжуд болыўы (сарлавҳа, асосий бөлим, қол қойыў жәри)
+3. Профессионал ҳәм анық ифадалар
+4. Сана ҳәм жер ушын бос жерлер қалдырыў
+5. Ҳужжат юридикалық жағынан дурыс ҳәм әмел қылатуғын болыўы
+6. Қарақалпақ тилинде имловий хатасыз жазылыўы
+
+Ҳужжат структурасы:
+- Сарлавҳа
+- Тәреплер (егер қәжет болса)
+- Асосий мазмуны
+- Шартлар (егер қәжет болса)
+- Саналар ҳәм қол қойыў жерлери
+
+Тек тайяр ҳужжат мәтинин қайтарың, басқа түсиндириў бермең.`;
+  } else {
+    prompt = `Вы профессиональный составитель юридических документов. На основе следующей информации создайте официальный документ "${docTypeName}" на русском языке.
+
+Основная информация: "${inputText}"
+
+Требования к документу:
+1. Использование официального юридического формата и языка
+2. Наличие всех необходимых разделов (заголовок, основная часть, место для подписи)
+3. Профессиональные и точные выражения
+4. Оставление пустых мест для даты и места
+5. Документ должен быть юридически корректным и действующим
+6. Написание на русском языке без орфографических ошибок
+
+Структура документа:
+- Заголовок
+- Стороны (если необходимо)
+- Основное содержание
+- Условия (если необходимо)
+- Даты и места для подписей
+
+Верните только готовый текст документа, без дополнительных объяснений.`;
+  }
+
+  try {
+    const documentText = await sendGeminiRequest(prompt);
+
+    return {
+      success: true,
+      data: {
+        document: documentText.trim(),
+        type: documentType,
+        language: language,
+        generated: new Date().toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error("Document generation error:", error);
+    return {
+      success: false,
+      error: error.message || "Hujjat yaratishda xato",
+    };
+  }
 };
 
 // So'z takliflarini olish

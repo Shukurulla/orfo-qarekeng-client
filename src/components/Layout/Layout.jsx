@@ -19,6 +19,7 @@ import {
   HomeOutlined,
   TranslationOutlined,
   CheckCircleOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import { useAppSelector, useAppDispatch } from "@/hooks/redux";
 import {
@@ -94,6 +95,16 @@ const Layout = ({ children }) => {
       },
     },
     {
+      key: "document",
+      icon: <FileTextOutlined />,
+      label: "Matn yaxshilash",
+      onClick: () => {
+        dispatch(setActiveTab("document"));
+        navigate("/document");
+        if (isMobile) dispatch(setSidebarOpen(false));
+      },
+    },
+    {
       type: "divider",
     },
     {
@@ -106,15 +117,6 @@ const Layout = ({ children }) => {
         if (isMobile) dispatch(setSidebarOpen(false));
       },
     },
-    {
-      key: "settings",
-      icon: <SettingOutlined />,
-      label: "Sozlamalar",
-      onClick: () => {
-        dispatch(openModal("settings"));
-        if (isMobile) dispatch(setSidebarOpen(false));
-      },
-    },
   ];
 
   // Active menu key based on current route and tab
@@ -122,10 +124,13 @@ const Layout = ({ children }) => {
     if (location.pathname === "/about") return "about";
     if (location.pathname === "/spellcheck") return "spellcheck";
     if (location.pathname === "/translate") return "translate";
+    if (location.pathname === "/document") return "document";
     if (location.pathname === "/" && activeTab === "spellcheck")
       return "spellcheck";
     if (location.pathname === "/" && activeTab === "translate")
       return "translate";
+    if (location.pathname === "/" && activeTab === "document")
+      return "document";
     return "/";
   };
 
@@ -134,10 +139,13 @@ const Layout = ({ children }) => {
     if (location.pathname === "/about") return "Loyiha haqida";
     if (location.pathname === "/spellcheck") return "Imlo tekshiruv";
     if (location.pathname === "/translate") return "Transliteratsiya";
+    if (location.pathname === "/document") return "Hujjat yaratish";
     if (location.pathname === "/" && activeTab === "spellcheck")
       return "Imlo tekshiruv";
     if (location.pathname === "/" && activeTab === "translate")
       return "Transliteratsiya";
+    if (location.pathname === "/" && activeTab === "document")
+      return "Hujjat yaratish";
     return "Bosh sahifa";
   };
 
@@ -198,7 +206,7 @@ const Layout = ({ children }) => {
   );
 
   return (
-    <AntLayout className="min-h-screen">
+    <AntLayout className="h-[100vh]">
       {/* Desktop Sidebar */}
       {!isMobile && (
         <Sider
@@ -241,24 +249,6 @@ const Layout = ({ children }) => {
           <div className="flex items-center justify-between h-full">
             <div className="flex items-center space-x-4">
               {/* Mobile menu toggle */}
-              {isMobile && (
-                <Button
-                  type="text"
-                  icon={<MenuOutlined />}
-                  onClick={() => dispatch(setSidebarOpen(true))}
-                  className="text-gray-600 dark:text-gray-300"
-                />
-              )}
-
-              {/* Desktop collapse toggle */}
-              {!isMobile && (
-                <Button
-                  type="text"
-                  icon={collapsed ? <MenuOutlined /> : <CloseOutlined />}
-                  onClick={() => setCollapsed(!collapsed)}
-                  className="text-gray-600 dark:text-gray-300"
-                />
-              )}
 
               {/* Page title */}
               <div>
@@ -280,22 +270,12 @@ const Layout = ({ children }) => {
                   />
                 </Tooltip>
               )}
-
-              {/* Settings */}
-              <Tooltip title="Sozlamalar">
-                <Button
-                  type="text"
-                  icon={<SettingOutlined />}
-                  onClick={() => dispatch(openModal("settings"))}
-                  className="text-gray-600 dark:text-gray-300"
-                />
-              </Tooltip>
             </div>
           </div>
         </Header>
 
         {/* Main Content */}
-        <Content className="bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
+        <Content className="bg-gray-50 dark:bg-gray-900 h-[90vh] overflow-y-scroll">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname + activeTab}

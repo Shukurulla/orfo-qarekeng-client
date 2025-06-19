@@ -5,7 +5,7 @@ const initialState = {
   theme: localStorage.getItem("theme") || "light",
 
   // Active tab
-  activeTab: "/", // spellcheck, translate
+  activeTab: "/", // spellcheck, translate, document
 
   // Sidebar
   sidebarOpen: false,
@@ -62,8 +62,9 @@ const initialState = {
   shortcuts: {
     checkText: "Ctrl+Enter",
     translate: "Ctrl+T",
+    document: "Ctrl+D",
     clearText: "Ctrl+L",
-    toggleTheme: "Ctrl+D",
+    toggleTheme: "Ctrl+Shift+D",
     openSettings: "Ctrl+,",
   },
 

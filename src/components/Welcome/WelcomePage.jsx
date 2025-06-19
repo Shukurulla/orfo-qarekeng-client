@@ -3,6 +3,7 @@ import { Card, Button, Row, Col, Statistic, Typography, Space } from "antd";
 import {
   CheckCircleOutlined,
   TranslationOutlined,
+  FileTextOutlined,
   BookOutlined,
   RocketOutlined,
   StarOutlined,
@@ -22,7 +23,7 @@ const WelcomePage = () => {
       icon: <CheckCircleOutlined className="text-4xl text-blue-500" />,
       title: "Imlo tekshiruv",
       description:
-        "Qoraqolpoq tilida yozilgan matnlardagi imloviy xatolarni aniqlang va to'g'rilang",
+        "Qoraqalpoq tilida yozilgan matnlardagi imloviy xatolarni aniqlang va to'g'rilang",
       action: () => dispatch(setActiveTab("spellcheck")),
       buttonText: "Tekshirishni boshlash",
       color: "blue",
@@ -36,6 +37,15 @@ const WelcomePage = () => {
       buttonText: "Aylantirishni boshlash",
       color: "green",
     },
+    {
+      icon: <FileTextOutlined className="text-4xl text-purple-500" />,
+      title: "Matn yaxshilash",
+      description:
+        "AI yordamida har qanday matnni mukammallashtiring va professional ko'rinishga keltiring",
+      action: () => dispatch(setActiveTab("document")),
+      buttonText: "Matn yaxshilashni boshlash",
+      color: "purple",
+    },
   ];
 
   const statistics = [
@@ -46,7 +56,7 @@ const WelcomePage = () => {
       icon: <ThunderboltOutlined />,
     },
     { title: "99%+", value: "Aniqlik", icon: <StarOutlined /> },
-    { title: "Tezkor", value: "Real vaqt", icon: <RocketOutlined /> },
+    { title: "AI Powered", value: "Gemini Pro", icon: <RocketOutlined /> },
   ];
 
   return (
@@ -65,17 +75,17 @@ const WelcomePage = () => {
         </div>
 
         <Title level={1} className="!mb-4 !text-4xl lg:!text-5xl">
-          Qoraqolpoq tili uchun
+          Qoraqalpoq tili uchun
           <br />
           <span className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
-            Imlo tekshiruvchi
+            AI Powered Platformasi
           </span>
         </Title>
 
         <Paragraph className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          Professional darajadagi imlo tekshiruv va transliteratsiya vositasi.
-          Qoraqolpoq tilida yozilgan matnlarni tekshiring, to'g'rilang va alifbo
-          o'rtasida aylantiring.
+          Professional darajadagi imlo tekshiruv, transliteratsiya va hujjat
+          yaratish vositasi. Gemini AI quvvati bilan Qoraqalpoq tilida mukammal
+          natijalar.
         </Paragraph>
       </motion.div>
 
@@ -110,7 +120,7 @@ const WelcomePage = () => {
       >
         <Row gutter={[32, 32]}>
           {features.map((feature, index) => (
-            <Col xs={24} lg={12} key={index}>
+            <Col xs={24} lg={8} key={index}>
               <motion.div whileHover={{ y: -5 }} transition={{ duration: 0.2 }}>
                 <Card
                   className="h-full hover:shadow-xl transition-all duration-300 border-0 shadow-lg"
@@ -163,7 +173,7 @@ const WelcomePage = () => {
             </Title>
 
             <Row gutter={[24, 24]} className="mt-8">
-              <Col xs={24} md={8}>
+              <Col xs={24} md={6}>
                 <Space direction="vertical" size="small" className="w-full">
                   <CheckCircleOutlined className="text-2xl text-green-500" />
                   <Text strong>Keng so'zlar bazasi</Text>
@@ -173,7 +183,7 @@ const WelcomePage = () => {
                 </Space>
               </Col>
 
-              <Col xs={24} md={8}>
+              <Col xs={24} md={6}>
                 <Space direction="vertical" size="small" className="w-full">
                   <ThunderboltOutlined className="text-2xl text-orange-500" />
                   <Text strong>Tezkor ishlash</Text>
@@ -183,12 +193,22 @@ const WelcomePage = () => {
                 </Space>
               </Col>
 
-              <Col xs={24} md={8}>
+              <Col xs={24} md={6}>
                 <Space direction="vertical" size="small" className="w-full">
                   <StarOutlined className="text-2xl text-yellow-500" />
                   <Text strong>Yuqori aniqlik</Text>
                   <Text className="text-gray-600 dark:text-gray-300">
-                    Professional darajada aniq natijalar
+                    Gemini AI quvvati bilan professional natijalar
+                  </Text>
+                </Space>
+              </Col>
+
+              <Col xs={24} md={6}>
+                <Space direction="vertical" size="small" className="w-full">
+                  <FileTextOutlined className="text-2xl text-purple-500" />
+                  <Text strong>Matn yaxshilash</Text>
+                  <Text className="text-gray-600 dark:text-gray-300">
+                    AI yordamida har qanday matnni mukammallashtirish
                   </Text>
                 </Space>
               </Col>

@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 // Simple Components
 import SimpleSpellChecker from "./components/SpellChecker/SpellChecker";
 import Transliterator from "./components/Transliterator/Transliterator";
+import DocumentGenerator from "./components/DocumentGenerator/DocumentGenerator";
 
 // Styles
 import "antd/dist/reset.css";
@@ -109,6 +110,7 @@ function AppContent() {
                   <Route path="/" element={<Home />} />
                   <Route path="/spellcheck" element={<SimpleSpellChecker />} />
                   <Route path="/translate" element={<Transliterator />} />
+                  <Route path="/document" element={<DocumentGenerator />} />
                   <Route path="/about" element={<About />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
