@@ -5,7 +5,7 @@ import {
   transliterate,
   autoTransliterate,
   detectScript,
-} from "@/utils/geminiService";
+} from "@/utils/OrfoAIService";
 
 // Async thunks for Gemini AI
 export const convertText = createAsyncThunk(

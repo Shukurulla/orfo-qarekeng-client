@@ -1,7 +1,7 @@
 // src/store/slices/spellCheckSlice.js
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { checkSpelling, correctText } from "@/utils/geminiService";
+import { checkSpelling, correctText } from "@/utils/OrfoAIService";
 
 // Async thunks for Gemini AI
 export const checkText = createAsyncThunk(
