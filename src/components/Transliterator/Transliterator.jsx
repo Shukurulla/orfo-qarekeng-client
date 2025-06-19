@@ -28,7 +28,7 @@ import {
   transliterate,
   autoTransliterate,
   detectScript,
-} from "@/utils/geminiService";
+} from "@/utils/OrfoAIService";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -58,7 +58,7 @@ const Transliterator = () => {
     setError(null);
   }, []);
 
-  // Convert text with Gemini
+  // Convert text with OrfoAI
   const handleConvert = useCallback(async () => {
     if (!originalText.trim()) {
       message.warning("Aylantirish uchun matn kiriting");
@@ -106,7 +106,7 @@ const Transliterator = () => {
     }
   }, [originalText, conversionMode]);
 
-  // Detect script with Gemini
+  // Detect script with OrfoAI
   const handleDetectScript = useCallback(async () => {
     if (!originalText.trim()) {
       message.warning("Aniqlash uchun matn kiriting");
@@ -399,7 +399,7 @@ const Transliterator = () => {
           <Card
             title={
               <Space>
-                <span>RapidAPI Gemini Natijasi</span>
+                <span>OrfoAI Natijasi</span>
                 {toScript && (
                   <Tag color="orange">
                     {toScript === "cyrillic" ? "Kirill" : "Lotin"}
@@ -434,14 +434,14 @@ const Transliterator = () => {
             <div className="relative">
               {isConverting && (
                 <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 z-10 flex items-center justify-center rounded-lg">
-                  <Spin size="large" tip="RapidAPI Gemini aylantirilmoqda..." />
+                  <Spin size="large" tip="OrfoAI aylantirilmoqda..." />
                 </div>
               )}
 
               <TextArea
                 value={convertedText}
                 readOnly
-                placeholder="RapidAPI Gemini transliteratsiya natijasi bu yerda ko'rsatiladi..."
+                placeholder="OrfoAI transliteratsiya natijasi bu yerda ko'rsatiladi..."
                 className="min-h-[400px] resize-none bg-gray-50 dark:bg-gray-800"
                 style={{
                   fontSize: "16px",
@@ -477,7 +477,7 @@ const Transliterator = () => {
             <div className="text-center">
               <RobotOutlined className="text-4xl text-blue-500 mb-4" />
               <h3 className="text-lg font-semibold mb-2">
-                RapidAPI Gemini Pro bilan Professional Transliteratsiya
+                OrfoAI Pro bilan Professional Transliteratsiya
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
@@ -499,9 +499,9 @@ const Transliterator = () => {
               </div>
               <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>RapidAPI Gemini Pro:</strong> Eng so'nggi AI
-                  texnologiyasi bilan yuqori aniqlikda transliteratsiya.
-                  Avtomatik rejim alifboni aniqlab, kerakli tomonga aylantiradi.
+                  <strong>OrfoAI Pro:</strong> Eng so'nggi AI texnologiyasi
+                  bilan yuqori aniqlikda transliteratsiya. Avtomatik rejim
+                  alifboni aniqlab, kerakli tomonga aylantiradi.
                 </p>
               </div>
             </div>

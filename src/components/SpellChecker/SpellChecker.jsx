@@ -33,7 +33,7 @@ import {
   checkSpelling,
   correctText,
   testConnection,
-} from "@/utils/geminiService";
+} from "@/utils/OrfoAIService";
 
 const { Text, Title } = Typography;
 
@@ -66,7 +66,7 @@ const SpellChecker = () => {
     console.log(mistakes);
   }, [mistakes]);
 
-  // Imlo tekshirish - Gemini bilan
+  // Imlo tekshirish - OrfoAI bilan
   const handleCheck = useCallback(async () => {
     if (!originalText.trim()) {
       message.warning("Tekshirish uchun matn kiriting");
@@ -123,19 +123,15 @@ const SpellChecker = () => {
       const errorMsg = err.message || "Tekshirishda xato yuz berdi";
       console.error("Spell check error:", err);
 
-      // Gemini API specific errors
+      // OrfoAI API specific errors
       if (err.message?.includes("API Error: 404")) {
-        setError(
-          "RapidAPI endpoint topilmadi. URL yoki API kalitini tekshiring."
-        );
+        setError(" endpoint topilmadi. URL yoki API kalitini tekshiring.");
       } else if (err.message?.includes("API Error: 403")) {
         setError(
-          "RapidAPI kaliti noto'g'ri yoki ruxsat yo'q. API kalitingizni tekshiring."
+          " kaliti noto'g'ri yoki ruxsat yo'q. API kalitingizni tekshiring."
         );
       } else if (err.message?.includes("API Error: 429")) {
-        setError(
-          "RapidAPI quotasini oshirib yubordingiz. Keyinroq urinib ko'ring."
-        );
+        setError(" quotasini oshirib yubordingiz. Keyinroq urinib ko'ring.");
       } else if (err.message?.includes("Network error")) {
         setError("Internet aloqasi muammosi. Internetingizni tekshiring.");
       } else {
@@ -147,7 +143,7 @@ const SpellChecker = () => {
     }
   }, [originalText]);
 
-  // Avtomatik to'g'irlash - Gemini bilan
+  // Avtomatik to'g'irlash - OrfoAI bilan
   const handleAutoCorrect = useCallback(async () => {
     if (!originalText.trim()) {
       message.warning("To'g'irlash uchun matn kiriting");
@@ -188,19 +184,15 @@ const SpellChecker = () => {
       const errorMsg = err.message || "To'g'irlashda xato yuz berdi";
       console.error("Auto correct error:", err);
 
-      // Gemini API specific errors
+      // OrfoAI API specific errors
       if (err.message?.includes("API Error: 404")) {
-        setError(
-          "RapidAPI endpoint topilmadi. URL yoki API kalitini tekshiring."
-        );
+        setError(" endpoint topilmadi. URL yoki API kalitini tekshiring.");
       } else if (err.message?.includes("API Error: 403")) {
         setError(
-          "RapidAPI kaliti noto'g'ri yoki ruxsat yo'q. API kalitingizni tekshiring."
+          " kaliti noto'g'ri yoki ruxsat yo'q. API kalitingizni tekshiring."
         );
       } else if (err.message?.includes("API Error: 429")) {
-        setError(
-          "RapidAPI quotasini oshirib yubordingiz. Keyinroq urinib ko'ring."
-        );
+        setError(" quotasini oshirib yubordingiz. Keyinroq urinib ko'ring.");
       } else if (err.message?.includes("Network error")) {
         setError("Internet aloqasi muammosi. Internetingizni tekshiring.");
       } else {
@@ -360,7 +352,7 @@ const SpellChecker = () => {
               <div className="flex items-center justify-between">
                 <Space>
                   <RobotOutlined className="text-blue-500" />
-                  <span>Gemini AI Imlo Tekshiruvchi</span>
+                  <span>OrfoAI AI Imlo Tekshiruvchi</span>
                   {statistics && (
                     <Tag
                       color={
@@ -424,15 +416,10 @@ const SpellChecker = () => {
               {/* Debug Panel */}
               {showDebug && process.env.NODE_ENV === "development" && (
                 <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h4 className="font-bold mb-2">
-                    🐛 RapidAPI Gemini Debug Info
-                  </h4>
+                  <h4 className="font-bold mb-2">🐛 OrfoAI Debug Info</h4>
                   <div className="text-sm space-y-1">
                     <div>
-                      RapidAPI Key:{" "}
-                      {import.meta.env.VITE_RAPIDAPI_KEY
-                        ? "✅ Set"
-                        : "❌ Missing"}
+                      Key: {import.meta.env.VITE__KEY ? "✅ Set" : "❌ Missing"}
                     </div>
                     <div>Environment: {import.meta.env.MODE}</div>
                     <div>
@@ -443,7 +430,7 @@ const SpellChecker = () => {
                             console.log("API Test result:", result);
                             if (result.success) {
                               alert(
-                                `✅ RapidAPI Connection Success!\nResponse: ${result.response}`
+                                `✅  Connection Success!\nResponse: ${result.response}`
                               );
                             } else {
                               alert(`❌ Connection Failed: ${result.error}`);
@@ -455,7 +442,7 @@ const SpellChecker = () => {
                         }}
                         className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
                       >
-                        Test RapidAPI Connection
+                        Test Connection
                       </button>
                     </div>
                     {hasChecked && results.length > 0 && (
@@ -490,7 +477,7 @@ const SpellChecker = () => {
               {correctionInProgress && (
                 <Alert
                   message="AI to'g'irlash jarayoni"
-                  description="RapidAPI Gemini matnni tahlil qilib, xatolarni to'g'irlamoqda..."
+                  description=" OrfoAI matnni tahlil qilib, xatolarni to'g'irlamoqda..."
                   type="info"
                   showIcon
                   className="mb-4"
@@ -504,8 +491,8 @@ const SpellChecker = () => {
                     size="large"
                     tip={
                       isChecking
-                        ? "RapidAPI Gemini tekshirmoqda..."
-                        : "RapidAPI Gemini to'g'irlamoqda..."
+                        ? " OrfoAI tekshirmoqda..."
+                        : " OrfoAI to'g'irlamoqda..."
                     }
                   />
                 </div>
@@ -519,7 +506,7 @@ const SpellChecker = () => {
                     ref={textAreaRef}
                     value={originalText}
                     onChange={handleTextChange}
-                    placeholder="Bu yerda Qoraqalpoq tilida matn yozing... (RapidAPI Gemini Pro yordami bilan)"
+                    placeholder="Bu yerda Qoraqalpoq tilida matn yozing... ( OrfoAI Pro yordami bilan)"
                     className="w-full min-h-[400px] p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
                     style={{
                       fontSize: "14px",
@@ -585,7 +572,7 @@ const SpellChecker = () => {
                     title={
                       <Space>
                         <BookOutlined />
-                        <span>RapidAPI Gemini Tahlili</span>
+                        <span> OrfoAI Tahlili</span>
                       </Space>
                     }
                     size="small"
@@ -662,7 +649,7 @@ const SpellChecker = () => {
                     title={
                       <Space>
                         <ExclamationCircleOutlined className="text-red-500" />
-                        <span>RapidAPI Gemini Takliflari</span>
+                        <span> OrfoAI Takliflari</span>
                         <Tag color="red">{mistakes.length} ta xato</Tag>
                       </Space>
                     }
@@ -691,7 +678,7 @@ const SpellChecker = () => {
                                   className="text-xs flex items-center"
                                 >
                                   <BulbOutlined className="mr-1" />
-                                  RapidAPI Takliflari:
+                                  Takliflari:
                                 </Text>
                                 <div className="space-y-1">
                                   {mistake.similarWords
@@ -751,7 +738,7 @@ const SpellChecker = () => {
                               Ajoyib!
                             </Text>
                             <div className="text-sm text-gray-500">
-                              RapidAPI Gemini xato topmadi
+                              OrfoAI xato topmadi
                             </div>
                           </div>
                         }
@@ -772,14 +759,12 @@ const SpellChecker = () => {
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
                   <div className="space-y-2">
-                    <Title level={4}>
-                      RapidAPI Gemini Pro Imlo Tekshiruvchisi
-                    </Title>
+                    <Title level={4}>OrfoAI Pro Imlo Tekshiruvchisi</Title>
                     <Text className="text-gray-500">
                       Matn kiriting va AI yordamida tekshiring
                     </Text>
                     <div className="text-xs text-gray-400 space-y-1">
-                      <div>• RapidAPI Gemini Pro quvvati</div>
+                      <div>• OrfoAI Pro quvvati</div>
                       <div>• Kirill va Lotin alifbolari</div>
                       <div>• Professional aniqlik</div>
                       <div>• Avtomatik to'g'irlash</div>
