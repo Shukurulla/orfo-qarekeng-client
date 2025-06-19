@@ -25,9 +25,15 @@ import {
   ExclamationCircleOutlined,
   BookOutlined,
   BulbOutlined,
+  RobotOutlined,
+  BugOutlined,
 } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
-import { spellCheckAPI } from "@/utils/api";
+import {
+  checkSpelling,
+  correctText,
+  testConnection,
+} from "@/utils/geminiService";
 
 const { Text, Title } = Typography;
 
@@ -43,7 +49,8 @@ const SpellChecker = () => {
   const [isCorrecting, setIsCorrecting] = useState(false);
   const [error, setError] = useState(null);
   const [hasChecked, setHasChecked] = useState(false);
-  const [selectedMistake, setSelectedMistake] = useState(null);
+  const [correctionInProgress, setCorrectionInProgress] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
 
   // Matn o'zgarishi
   const handleTextChange = useCallback((e) => {
@@ -54,8 +61,11 @@ const SpellChecker = () => {
     setMistakes([]);
     setStatistics(null);
   }, []);
+  useEffect(() => {
+    console.log(mistakes);
+  }, [mistakes]);
 
-  // Imlo tekshirish
+  // Imlo tekshirish - Gemini bilan
   const handleCheck = useCallback(async () => {
     if (!originalText.trim()) {
       message.warning("Tekshirish uchun matn kiriting");
@@ -71,68 +81,156 @@ const SpellChecker = () => {
     setError(null);
 
     try {
-      const response = await spellCheckAPI.checkText(originalText);
+      const response = await checkSpelling(originalText);
+      console.log("Spell check response:", response); // Debug uchun
 
-      if (response.data.success) {
-        setResults(response.data.data.results);
-        setMistakes(response.data.data.mistakes);
-        setStatistics(response.data.data.statistics);
+      if (response.success) {
+        const spellResults = response.data.results || [];
+        const stats = response.data.statistics;
+
+        console.log("Spell results:", spellResults); // Debug uchun
+
+        setResults(spellResults);
+        setStatistics(stats);
         setHasChecked(true);
-        message.success("Matn muvaffaqiyatli tekshirildi");
+
+        // Xato so'zlarni ajratib olish
+        const errorWords = spellResults
+          .filter((result) => !result.isCorrect)
+          .map((result) => ({
+            mistakeWord: result.word,
+            similarWords:
+              result.suggestions?.map((suggestion, index) => ({
+                word: suggestion.word || suggestion,
+                similarity: suggestion.confidence || 95 - index * 5, // Default confidence
+              })) || [],
+          }));
+
+        setMistakes(errorWords);
+
+        if (errorWords.length === 0) {
+          message.success("Ajoyib! Matnda xato topilmadi");
+        } else {
+          message.info(`${errorWords.length} ta imlo xatosi topildi`);
+        }
       } else {
-        setError(response.data.error);
-        message.error(response.data.error);
+        console.error("Spell check failed:", response.error); // Debug uchun
+        setError(response.error);
+        message.error(response.error);
       }
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.error || "Tekshirishda xato yuz berdi";
-      setError(errorMsg);
+      const errorMsg = err.message || "Tekshirishda xato yuz berdi";
+      console.error("Spell check error:", err);
+
+      // Gemini API specific errors
+      if (err.message?.includes("API Error: 404")) {
+        setError(
+          "RapidAPI endpoint topilmadi. URL yoki API kalitini tekshiring."
+        );
+      } else if (err.message?.includes("API Error: 403")) {
+        setError(
+          "RapidAPI kaliti noto'g'ri yoki ruxsat yo'q. API kalitingizni tekshiring."
+        );
+      } else if (err.message?.includes("API Error: 429")) {
+        setError(
+          "RapidAPI quotasini oshirib yubordingiz. Keyinroq urinib ko'ring."
+        );
+      } else if (err.message?.includes("Network error")) {
+        setError("Internet aloqasi muammosi. Internetingizni tekshiring.");
+      } else {
+        setError(errorMsg);
+      }
       message.error(errorMsg);
     } finally {
       setIsChecking(false);
     }
   }, [originalText]);
 
-  // Avtomatik to'g'irlash
+  // Avtomatik to'g'irlash - Gemini bilan
   const handleAutoCorrect = useCallback(async () => {
     if (!originalText.trim()) {
       message.warning("To'g'irlash uchun matn kiriting");
       return;
     }
 
+    setCorrectionInProgress(true);
     setIsCorrecting(true);
     setError(null);
 
     try {
-      const response = await spellCheckAPI.autoCorrect(originalText);
+      const response = await correctText(originalText);
 
-      if (response.data.success) {
-        setOriginalText(response.data.data.corrected);
-        setHasChecked(false);
-        setResults([]);
-        setMistakes([]);
-        setStatistics(null);
+      if (response.success) {
+        const correctedText = response.data.corrected;
 
-        if (response.data.data.correctionCount > 0) {
-          message.success(
-            `${response.data.data.correctionCount} ta so'z to'g'irlandi`
-          );
+        if (correctedText !== originalText) {
+          setOriginalText(correctedText);
+          setHasChecked(false);
+          setResults([]);
+          setMistakes([]);
+          setStatistics(null);
+
+          message.success("Matn muvaffaqiyatli to'g'irlandi!");
+
+          // Auto-check after correction
+          setTimeout(() => {
+            handleAutoCheckAfterCorrection(correctedText);
+          }, 1000);
         } else {
           message.info("To'g'irlanadigan xato topilmadi");
         }
       } else {
-        setError(response.data.error);
-        message.error(response.data.error);
+        setError(response.error);
+        message.error(response.error);
       }
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.error || "To'g'irlashda xato yuz berdi";
-      setError(errorMsg);
+      const errorMsg = err.message || "To'g'irlashda xato yuz berdi";
+      console.error("Auto correct error:", err);
+
+      // Gemini API specific errors
+      if (err.message?.includes("API Error: 404")) {
+        setError(
+          "RapidAPI endpoint topilmadi. URL yoki API kalitini tekshiring."
+        );
+      } else if (err.message?.includes("API Error: 403")) {
+        setError(
+          "RapidAPI kaliti noto'g'ri yoki ruxsat yo'q. API kalitingizni tekshiring."
+        );
+      } else if (err.message?.includes("API Error: 429")) {
+        setError(
+          "RapidAPI quotasini oshirib yubordingiz. Keyinroq urinib ko'ring."
+        );
+      } else if (err.message?.includes("Network error")) {
+        setError("Internet aloqasi muammosi. Internetingizni tekshiring.");
+      } else {
+        setError(errorMsg);
+      }
       message.error(errorMsg);
     } finally {
       setIsCorrecting(false);
+      setCorrectionInProgress(false);
     }
   }, [originalText]);
+
+  // To'g'irlashdan keyin avtomatik tekshirish
+  const handleAutoCheckAfterCorrection = useCallback(async (text) => {
+    try {
+      const response = await checkSpelling(text);
+      if (response.success) {
+        setResults(response.data.results || []);
+        setStatistics(response.data.statistics);
+        setHasChecked(true);
+
+        const errorCount =
+          response.data.results?.filter((r) => !r.isCorrect).length || 0;
+        if (errorCount === 0) {
+          message.success("To'g'irlash muvaffaqiyatli yakunlandi!");
+        }
+      }
+    } catch (error) {
+      console.error("Auto-check error:", error);
+    }
+  }, []);
 
   // Tozalash
   const handleClear = useCallback(() => {
@@ -142,7 +240,7 @@ const SpellChecker = () => {
     setStatistics(null);
     setHasChecked(false);
     setError(null);
-    setSelectedMistake(null);
+    setCorrectionInProgress(false);
     if (textAreaRef.current) {
       textAreaRef.current.focus();
     }
@@ -151,10 +249,12 @@ const SpellChecker = () => {
   // So'zni almashtirish
   const handleReplaceWord = useCallback(
     (mistakeWord, replacement) => {
-      const newText = originalText.replace(
-        new RegExp(`\\b${mistakeWord}\\b`, "g"),
-        replacement
+      // Aniq so'zni topish uchun word boundary ishlatish
+      const regex = new RegExp(
+        `\\b${mistakeWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+        "gi" // case-insensitive qo'shildi
       );
+      const newText = originalText.replace(regex, replacement);
       setOriginalText(newText);
       setHasChecked(false);
       setResults([]);
@@ -167,33 +267,88 @@ const SpellChecker = () => {
     [originalText]
   );
 
-  // Highlighted text yaratish
+  // YANGILANGAN: Highlighted text yaratish - har bir so'zni alohida tekshirish
   const createHighlightedText = useCallback(() => {
     if (!hasChecked || !results.length || !originalText) {
       return originalText;
     }
 
-    let highlightedText = originalText;
-    let offset = 0;
+    // Xato so'zlarni Set obyektiga saqlash (tezroq qidirish uchun)
+    const errorWordsSet = new Set();
+    results
+      .filter((result) => !result.isCorrect)
+      .forEach((result) => {
+        if (result.word) {
+          // Kichik harflar bilan saqlash
+          errorWordsSet.add(result.word.toLowerCase().trim());
+        }
+      });
 
-    // Xato so'zlarni highlight qilish
-    results.forEach((result) => {
-      if (!result.isCorrect) {
-        const start = result.start + offset;
-        const end = result.end + offset;
-        const word = highlightedText.slice(start, end);
-        const highlighted = `<span class="spell-error" title="Xato so'z: ${word}">${word}</span>`;
+    if (errorWordsSet.size === 0) {
+      return originalText;
+    }
 
-        highlightedText =
-          highlightedText.slice(0, start) +
-          highlighted +
-          highlightedText.slice(end);
-        offset += highlighted.length - word.length;
+    console.log("Error words set:", Array.from(errorWordsSet)); // Debug uchun
+
+    // Regex orqali so'zlarni topish va xato so'zlarni highlight qilish
+    // Kirill va lotin harflarini qo'llab-quvvatlovchi regex
+    return originalText.replace(/\b[\wА-Яа-яЁёЎўҚқҒғҲҳҞҟӮӯ]+\b/g, (match) => {
+      const cleanWord = match.toLowerCase().trim();
+
+      if (errorWordsSet.has(cleanWord)) {
+        return `<span class="spell-error" title="Xato so'z: ${match}" data-word="${cleanWord}" data-original="${match}">${match}</span>`;
       }
-    });
 
-    return highlightedText;
+      return match;
+    });
   }, [originalText, results, hasChecked]);
+
+  // Xato so'zga click qilganda takliflarni ko'rsatish
+  const handleErrorWordClick = useCallback(
+    (event) => {
+      event.preventDefault();
+      const errorSpan = event.target.closest(".spell-error");
+      if (!errorSpan) return;
+
+      const originalWord = errorSpan.dataset.original;
+      const mistake = mistakes.find(
+        (m) => m.mistakeWord.toLowerCase() === originalWord.toLowerCase()
+      );
+
+      if (mistake && mistake.similarWords.length > 0) {
+        const suggestions = mistake.similarWords.slice(0, 3);
+        const suggestionText = suggestions
+          .map((s) => `${s.word} (${s.similarity}%)`)
+          .join("\n");
+
+        const confirmed = window.confirm(
+          `"${mistake.mistakeWord}" so'zi uchun takliflar:\n\n${suggestionText}\n\nEng yaxshi taklifni ("${suggestions[0].word}") qo'llashni istaysizmi?`
+        );
+
+        if (confirmed) {
+          handleReplaceWord(mistake.mistakeWord, suggestions[0].word);
+        }
+      } else {
+        message.info(`"${originalWord}" so'zi uchun taklif topilmadi`);
+      }
+    },
+    [mistakes, handleReplaceWord]
+  );
+
+  // Click event listener qo'shish
+  useEffect(() => {
+    const handleClick = (event) => {
+      if (event.target.classList.contains("spell-error")) {
+        handleErrorWordClick(event);
+      }
+    };
+
+    document.addEventListener("click", handleClick);
+
+    return () => {
+      document.removeEventListener("click", handleClick);
+    };
+  }, [handleErrorWordClick]);
 
   return (
     <div className="p-4 lg:p-6 h-full">
@@ -205,8 +360,8 @@ const SpellChecker = () => {
             title={
               <div className="flex items-center justify-between">
                 <Space>
-                  <FileTextOutlined />
-                  <span>Matn tahrirlovchi</span>
+                  <RobotOutlined className="text-blue-500" />
+                  <span>Gemini AI Imlo Tekshiruvchi</span>
                   {statistics && (
                     <Tag
                       color={
@@ -230,7 +385,7 @@ const SpellChecker = () => {
                   icon={<CheckOutlined />}
                   onClick={handleCheck}
                   loading={isChecking}
-                  disabled={!originalText.trim()}
+                  disabled={!originalText.trim() || correctionInProgress}
                 >
                   Tekshirish
                 </Button>
@@ -239,10 +394,11 @@ const SpellChecker = () => {
                   icon={<SyncOutlined />}
                   onClick={handleAutoCorrect}
                   loading={isCorrecting}
-                  disabled={!originalText.trim()}
+                  disabled={!originalText.trim() || isChecking}
                   type="default"
+                  className="bg-green-500 text-white border-green-500 hover:bg-green-600"
                 >
-                  Avtomatik to'g'irlash
+                  AI To'g'irlash
                 </Button>
 
                 <Button
@@ -252,10 +408,72 @@ const SpellChecker = () => {
                 >
                   Tozalash
                 </Button>
+
+                {process.env.NODE_ENV === "development" && (
+                  <Button
+                    icon={<BugOutlined />}
+                    onClick={() => setShowDebug(!showDebug)}
+                    type="dashed"
+                  >
+                    Debug
+                  </Button>
+                )}
               </Space>
             }
           >
             <div className="relative">
+              {/* Debug Panel */}
+              {showDebug && process.env.NODE_ENV === "development" && (
+                <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h4 className="font-bold mb-2">
+                    🐛 RapidAPI Gemini Debug Info
+                  </h4>
+                  <div className="text-sm space-y-1">
+                    <div>
+                      RapidAPI Key:{" "}
+                      {import.meta.env.VITE_RAPIDAPI_KEY
+                        ? "✅ Set"
+                        : "❌ Missing"}
+                    </div>
+                    <div>Environment: {import.meta.env.MODE}</div>
+                    <div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const result = await testConnection();
+                            console.log("API Test result:", result);
+                            if (result.success) {
+                              alert(
+                                `✅ RapidAPI Connection Success!\nResponse: ${result.response}`
+                              );
+                            } else {
+                              alert(`❌ Connection Failed: ${result.error}`);
+                            }
+                          } catch (error) {
+                            console.error("Debug error:", error);
+                            alert(`❌ Error: ${error.message}`);
+                          }
+                        }}
+                        className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
+                      >
+                        Test RapidAPI Connection
+                      </button>
+                    </div>
+                    {hasChecked && results.length > 0 && (
+                      <div className="mt-2 p-2 bg-gray-100 rounded">
+                        <div className="font-bold">Found error words:</div>
+                        <div className="text-xs">
+                          {results
+                            .filter((r) => !r.isCorrect)
+                            .map((r) => r.word)
+                            .join(", ")}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Error Alert */}
               {error && (
                 <Alert
@@ -269,13 +487,26 @@ const SpellChecker = () => {
                 />
               )}
 
+              {/* Correction Progress Alert */}
+              {correctionInProgress && (
+                <Alert
+                  message="AI to'g'irlash jarayoni"
+                  description="RapidAPI Gemini matnni tahlil qilib, xatolarni to'g'irlamoqda..."
+                  type="info"
+                  showIcon
+                  className="mb-4"
+                />
+              )}
+
               {/* Loading Overlay */}
               {(isChecking || isCorrecting) && (
                 <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 z-10 flex items-center justify-center rounded-lg">
                   <Spin
                     size="large"
                     tip={
-                      isChecking ? "Tekshirilmoqda..." : "To'g'irlanmoqda..."
+                      isChecking
+                        ? "RapidAPI Gemini tekshirmoqda..."
+                        : "RapidAPI Gemini to'g'irlamoqda..."
                     }
                   />
                 </div>
@@ -292,6 +523,7 @@ const SpellChecker = () => {
                       lineHeight: "1.5715",
                       fontFamily: "inherit",
                       color: "transparent",
+                      pointerEvents: "auto", // Click eventi uchun
                     }}
                     dangerouslySetInnerHTML={{
                       __html: createHighlightedText(),
@@ -303,7 +535,7 @@ const SpellChecker = () => {
                   ref={textAreaRef}
                   value={originalText}
                   onChange={handleTextChange}
-                  placeholder="Bu yerda Qoraqalpoq tilida matn yozing..."
+                  placeholder="Bu yerda Qoraqalpoq tilida matn yozing... (RapidAPI Gemini Pro yordami bilan)"
                   className={`w-full min-h-[400px] p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     hasChecked ? "relative z-20 bg-transparent" : ""
                   }`}
@@ -353,7 +585,7 @@ const SpellChecker = () => {
                     title={
                       <Space>
                         <BookOutlined />
-                        <span>Statistika</span>
+                        <span>RapidAPI Gemini Tahlili</span>
                       </Space>
                     }
                     size="small"
@@ -412,9 +644,9 @@ const SpellChecker = () => {
                         <div>
                           <Text type="secondary">Alifbo</Text>
                           <div className="font-semibold">
-                            {statistics.scriptType === "kiril"
+                            {statistics.scriptType === "cyrillic"
                               ? "Kirill"
-                              : statistics.scriptType === "lotin"
+                              : statistics.scriptType === "latin"
                               ? "Lotin"
                               : "Aralash"}
                           </div>
@@ -430,8 +662,8 @@ const SpellChecker = () => {
                     title={
                       <Space>
                         <ExclamationCircleOutlined className="text-red-500" />
-                        <span>Xato so'zlar</span>
-                        <Tag color="red">{mistakes.length} ta</Tag>
+                        <span>RapidAPI Gemini Takliflari</span>
+                        <Tag color="red">{mistakes.length} ta xato</Tag>
                       </Space>
                     }
                     size="small"
@@ -459,7 +691,7 @@ const SpellChecker = () => {
                                   className="text-xs flex items-center"
                                 >
                                   <BulbOutlined className="mr-1" />
-                                  Takliflar:
+                                  RapidAPI Takliflari:
                                 </Text>
                                 <div className="space-y-1">
                                   {mistake.similarWords
@@ -519,7 +751,7 @@ const SpellChecker = () => {
                               Ajoyib!
                             </Text>
                             <div className="text-sm text-gray-500">
-                              Matnda xato topilmadi
+                              RapidAPI Gemini xato topmadi
                             </div>
                           </div>
                         }
@@ -540,14 +772,18 @@ const SpellChecker = () => {
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
                   <div className="space-y-2">
-                    <Title level={4}>Qoraqalpoq tili imlo tekshiruvchisi</Title>
+                    <Title level={4}>
+                      RapidAPI Gemini Pro Imlo Tekshiruvchisi
+                    </Title>
                     <Text className="text-gray-500">
-                      Matn kiriting va tekshirishni boshlang
+                      Matn kiriting va AI yordamida tekshiring
                     </Text>
                     <div className="text-xs text-gray-400 space-y-1">
-                      <div>• 142,000+ so'z bazasi</div>
+                      <div>• RapidAPI Gemini Pro quvvati</div>
                       <div>• Kirill va Lotin alifbolari</div>
                       <div>• Professional aniqlik</div>
+                      <div>• Avtomatik to'g'irlash</div>
+                      <div>• Xato so'zlarga click qiling</div>
                     </div>
                   </div>
                 }
@@ -567,11 +803,19 @@ const SpellChecker = () => {
           margin: 0 1px;
           cursor: pointer;
           transition: all 0.2s ease;
+          position: relative;
+          display: inline-block;
         }
 
         :global(.spell-error:hover) {
           background-color: rgba(255, 77, 79, 0.3);
           transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(255, 77, 79, 0.3);
+        }
+
+        :global(.spell-error:active) {
+          transform: translateY(0);
+          background-color: rgba(255, 77, 79, 0.4);
         }
 
         :global(.dark .spell-error) {
@@ -580,6 +824,29 @@ const SpellChecker = () => {
 
         :global(.dark .spell-error:hover) {
           background-color: rgba(255, 77, 79, 0.25);
+        }
+
+        /* Tooltip style */
+        :global(.spell-error::after) {
+          content: attr(title);
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: rgba(0, 0, 0, 0.8);
+          color: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          white-space: nowrap;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s ease;
+          z-index: 1000;
+        }
+
+        :global(.spell-error:hover::after) {
+          opacity: 1;
         }
       `}</style>
     </div>

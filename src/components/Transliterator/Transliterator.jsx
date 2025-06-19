@@ -12,6 +12,8 @@ import {
   Space,
   Tooltip,
   message,
+  Input,
+  Tag,
 } from "antd";
 import {
   SwapOutlined,
@@ -19,59 +21,44 @@ import {
   ClearOutlined,
   TranslationOutlined,
   ScanOutlined,
+  RobotOutlined,
 } from "@ant-design/icons";
-import { useAppSelector, useAppDispatch } from "@/hooks/redux";
-import {
-  convertText,
-  detectTextScript,
-  setOriginalText,
-  setConversionMode,
-  swapTexts,
-  clearAll,
-} from "@/store/slices/transliterateSlice";
-import { addNotification } from "@/store/slices/uiSlice";
-import { Input } from "antd";
 import { motion } from "framer-motion";
+import {
+  transliterate,
+  autoTransliterate,
+  detectScript,
+} from "@/utils/geminiService";
 
 const { TextArea } = Input;
 const { Option } = Select;
 
 const Transliterator = () => {
-  const dispatch = useAppDispatch();
-
-  const {
-    originalText,
-    convertedText,
-    fromScript,
-    toScript,
-    conversionMode,
-    isConverting,
-    isDetecting,
-    error,
-    detectedScript,
-    scriptStatistics,
-  } = useAppSelector((state) => state.transliterate);
-
-  const { device } = useAppSelector((state) => state.ui);
-  const { isMobile } = device;
+  // State
+  const [originalText, setOriginalText] = useState("");
+  const [convertedText, setConvertedText] = useState("");
+  const [fromScript, setFromScript] = useState(null);
+  const [toScript, setToScript] = useState(null);
+  const [conversionMode, setConversionMode] = useState("auto");
+  const [isConverting, setIsConverting] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [error, setError] = useState(null);
+  const [detectedScript, setDetectedScript] = useState(null);
+  const [scriptStatistics, setScriptStatistics] = useState(null);
 
   // Handle text input
-  const handleOriginalTextChange = useCallback(
-    (e) => {
-      dispatch(setOriginalText(e.target.value));
-    },
-    [dispatch]
-  );
+  const handleOriginalTextChange = useCallback((e) => {
+    setOriginalText(e.target.value);
+    setError(null);
+  }, []);
 
   // Handle mode change
-  const handleModeChange = useCallback(
-    (mode) => {
-      dispatch(setConversionMode(mode));
-    },
-    [dispatch]
-  );
+  const handleModeChange = useCallback((mode) => {
+    setConversionMode(mode);
+    setError(null);
+  }, []);
 
-  // Convert text
+  // Convert text with Gemini
   const handleConvert = useCallback(async () => {
     if (!originalText.trim()) {
       message.warning("Aylantirish uchun matn kiriting");
@@ -83,34 +70,96 @@ const Transliterator = () => {
       return;
     }
 
+    setIsConverting(true);
+    setError(null);
+
     try {
-      await dispatch(
-        convertText({
-          text: originalText,
-          mode: conversionMode,
-        })
-      ).unwrap();
+      let response;
 
-      message.success(`Matn muvaffaqiyatli aylantirildi`);
+      if (conversionMode === "auto") {
+        response = await autoTransliterate(originalText);
+      } else {
+        const targetScript =
+          conversionMode === "toLatin" ? "latin" : "cyrillic";
+        response = await transliterate(originalText, targetScript);
+      }
+
+      if (response.success) {
+        setConvertedText(response.data.converted);
+        setFromScript(response.data.from);
+        setToScript(response.data.to);
+
+        const fromName = response.data.from === "cyrillic" ? "Kirill" : "Lotin";
+        const toName = response.data.to === "cyrillic" ? "Kirill" : "Lotin";
+
+        message.success(`${fromName}dan ${toName}ga muvaffaqiyatli aylandi`);
+      } else {
+        setError(response.error);
+        message.error(response.error);
+      }
     } catch (error) {
-      message.error(error || "Aylantirish xatosi");
+      const errorMsg = error.message || "Aylantirish xatosi";
+      setError(errorMsg);
+      message.error(errorMsg);
+    } finally {
+      setIsConverting(false);
     }
-  }, [dispatch, originalText, conversionMode]);
+  }, [originalText, conversionMode]);
 
-  // Detect script
+  // Detect script with Gemini
   const handleDetectScript = useCallback(async () => {
     if (!originalText.trim()) {
       message.warning("Aniqlash uchun matn kiriting");
       return;
     }
 
+    setIsDetecting(true);
+    setError(null);
+
     try {
-      await dispatch(detectTextScript(originalText)).unwrap();
-      message.success("Alifbo aniqlandi");
+      const script = detectScript(originalText);
+
+      // Statistika hisoblash
+      const cyrillicCount = (originalText.match(/[а-яәғқңөүһҳ]/gi) || [])
+        .length;
+      const latinCount = (originalText.match(/[a-zәğqńöüşıĞQŃÖÜŞI]/gi) || [])
+        .length;
+      const totalLetters = cyrillicCount + latinCount;
+
+      const statistics = {
+        cyrillic: {
+          count: cyrillicCount,
+          percentage:
+            totalLetters > 0
+              ? ((cyrillicCount / totalLetters) * 100).toFixed(1)
+              : 0,
+        },
+        latin: {
+          count: latinCount,
+          percentage:
+            totalLetters > 0
+              ? ((latinCount / totalLetters) * 100).toFixed(1)
+              : 0,
+        },
+        total: totalLetters,
+      };
+
+      setDetectedScript(script);
+      setScriptStatistics(statistics);
+
+      const scriptName =
+        script === "cyrillic"
+          ? "Kirill"
+          : script === "latin"
+          ? "Lotin"
+          : "Aralash";
+      message.success(`Alifbo aniqlandi: ${scriptName}`);
     } catch (error) {
       message.error("Alifbo aniqlashda xato");
+    } finally {
+      setIsDetecting(false);
     }
-  }, [dispatch, originalText]);
+  }, [originalText]);
 
   // Swap texts
   const handleSwap = useCallback(() => {
@@ -118,9 +167,17 @@ const Transliterator = () => {
       message.warning("Almashtirish uchun natija kerak");
       return;
     }
-    dispatch(swapTexts());
+
+    const tempText = originalText;
+    const tempFrom = fromScript;
+
+    setOriginalText(convertedText);
+    setConvertedText(tempText);
+    setFromScript(toScript);
+    setToScript(tempFrom);
+
     message.info("Matnlar almashtirildi");
-  }, [dispatch, convertedText]);
+  }, [originalText, convertedText, fromScript, toScript]);
 
   // Copy to clipboard
   const handleCopy = useCallback(async (text) => {
@@ -139,9 +196,15 @@ const Transliterator = () => {
 
   // Clear all
   const handleClear = useCallback(() => {
-    dispatch(clearAll());
+    setOriginalText("");
+    setConvertedText("");
+    setFromScript(null);
+    setToScript(null);
+    setDetectedScript(null);
+    setScriptStatistics(null);
+    setError(null);
     message.info("Hammasi tozalandi");
-  }, [dispatch]);
+  }, []);
 
   // Mode options
   const modeOptions = [
@@ -166,7 +229,7 @@ const Transliterator = () => {
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={12} md={8}>
               <Space className="w-full">
-                <TranslationOutlined className="text-blue-500" />
+                <RobotOutlined className="text-blue-500" />
                 <Select
                   value={conversionMode}
                   onChange={handleModeChange}
@@ -194,7 +257,7 @@ const Transliterator = () => {
                     loading={isDetecting}
                     disabled={!originalText.trim()}
                   >
-                    {!isMobile && "Aniqlash"}
+                    Aniqlash
                   </Button>
                 </Tooltip>
 
@@ -204,7 +267,7 @@ const Transliterator = () => {
                     onClick={handleSwap}
                     disabled={!convertedText.trim()}
                   >
-                    {!isMobile && "Almashtirish"}
+                    Almashtirish
                   </Button>
                 </Tooltip>
 
@@ -214,7 +277,7 @@ const Transliterator = () => {
                     onClick={handleClear}
                     disabled={!originalText.trim() && !convertedText.trim()}
                   >
-                    {!isMobile && "Tozalash"}
+                    Tozalash
                   </Button>
                 </Tooltip>
               </Space>
@@ -232,6 +295,7 @@ const Transliterator = () => {
           showIcon
           closable
           className="mb-4"
+          onClose={() => setError(null)}
         />
       )}
 
@@ -243,13 +307,18 @@ const Transliterator = () => {
           className="mb-4"
         >
           <Alert
-            message={`Aniqlangan alifbo: ${
-              detectedScript === "cyrillic"
-                ? "Kirill"
-                : detectedScript === "latin"
-                ? "Lotin"
-                : "Aralash"
-            }`}
+            message={
+              <Space>
+                <span>Aniqlangan alifbo:</span>
+                <Tag color="blue">
+                  {detectedScript === "cyrillic"
+                    ? "Kirill"
+                    : detectedScript === "latin"
+                    ? "Lotin"
+                    : "Aralash"}
+                </Tag>
+              </Space>
+            }
             description={
               <div>
                 <span>Kirill: {scriptStatistics.cyrillic.percentage}% | </span>
@@ -261,6 +330,11 @@ const Transliterator = () => {
             }
             type="info"
             showIcon
+            closable
+            onClose={() => {
+              setDetectedScript(null);
+              setScriptStatistics(null);
+            }}
           />
         </motion.div>
       )}
@@ -274,9 +348,9 @@ const Transliterator = () => {
               <Space>
                 <span>Kirish matni</span>
                 {fromScript && (
-                  <span className="text-sm text-gray-500">
-                    ({fromScript === "cyrillic" ? "Kirill" : "Lotin"})
-                  </span>
+                  <Tag color="green">
+                    {fromScript === "cyrillic" ? "Kirill" : "Lotin"}
+                  </Tag>
                 )}
               </Space>
             }
@@ -325,11 +399,11 @@ const Transliterator = () => {
           <Card
             title={
               <Space>
-                <span>Natija</span>
+                <span>RapidAPI Gemini Natijasi</span>
                 {toScript && (
-                  <span className="text-sm text-gray-500">
-                    ({toScript === "cyrillic" ? "Kirill" : "Lotin"})
-                  </span>
+                  <Tag color="orange">
+                    {toScript === "cyrillic" ? "Kirill" : "Lotin"}
+                  </Tag>
                 )}
               </Space>
             }
@@ -351,7 +425,7 @@ const Transliterator = () => {
                   loading={isConverting}
                   disabled={!originalText.trim()}
                 >
-                  {isMobile ? "" : "Aylantirish"}
+                  AI Aylantirish
                 </Button>
               </Space>
             }
@@ -360,14 +434,14 @@ const Transliterator = () => {
             <div className="relative">
               {isConverting && (
                 <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 z-10 flex items-center justify-center rounded-lg">
-                  <Spin size="large" tip="Aylantirilmoqda..." />
+                  <Spin size="large" tip="RapidAPI Gemini aylantirilmoqda..." />
                 </div>
               )}
 
               <TextArea
                 value={convertedText}
                 readOnly
-                placeholder="Aylantirish natijasi bu yerda ko'rsatiladi..."
+                placeholder="RapidAPI Gemini transliteratsiya natijasi bu yerda ko'rsatiladi..."
                 className="min-h-[400px] resize-none bg-gray-50 dark:bg-gray-800"
                 style={{
                   fontSize: "16px",
@@ -401,9 +475,9 @@ const Transliterator = () => {
         >
           <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-blue-200 dark:border-blue-800">
             <div className="text-center">
-              <TranslationOutlined className="text-4xl text-blue-500 mb-4" />
+              <RobotOutlined className="text-4xl text-blue-500 mb-4" />
               <h3 className="text-lg font-semibold mb-2">
-                ChatGPT 3.5 bilan Professional Transliteratsiya
+                RapidAPI Gemini Pro bilan Professional Transliteratsiya
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
@@ -411,7 +485,7 @@ const Transliterator = () => {
                   <div className="space-y-1 text-gray-600 dark:text-gray-300">
                     <div>а → a, ә → ә, б → b</div>
                     <div>ғ → ğ, қ → q, ң → ń</div>
-                    <div>ө → ö, ү → ü, ш → ş</div>
+                    <div>ө → ö, ү → ü, ҳ → h</div>
                   </div>
                 </div>
                 <div>
@@ -419,15 +493,15 @@ const Transliterator = () => {
                   <div className="space-y-1 text-gray-600 dark:text-gray-300">
                     <div>a → а, ә → ә, b → б</div>
                     <div>ğ → ғ, q → қ, ń → ң</div>
-                    <div>ö → ө, ü → ү, ş → ш</div>
+                    <div>ö → ө, ü → ү, h → ҳ</div>
                   </div>
                 </div>
               </div>
               <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Maslahat:</strong> Avtomatik rejim alifboni aniqlab,
-                  kerakli tomonga aylantiradi. Aniq yo'nalish uchun "Kirildan
-                  Lotinga" yoki "Lotindan Kirilga" rejimlarini tanlang.
+                  <strong>RapidAPI Gemini Pro:</strong> Eng so'nggi AI
+                  texnologiyasi bilan yuqori aniqlikda transliteratsiya.
+                  Avtomatik rejim alifboni aniqlab, kerakli tomonga aylantiradi.
                 </p>
               </div>
             </div>

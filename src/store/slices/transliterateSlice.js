@@ -5,9 +5,9 @@ import {
   transliterate,
   autoTransliterate,
   detectScript,
-} from "@/utils/chatgptService";
+} from "@/utils/geminiService";
 
-// Async thunks
+// Async thunks for Gemini AI
 export const convertText = createAsyncThunk(
   "transliterate/convertText",
   async ({ text, mode = "auto" }, { rejectWithValue }) => {
@@ -30,7 +30,9 @@ export const convertText = createAsyncThunk(
         mode: mode,
       };
     } catch (error) {
-      return rejectWithValue(error.message || "Transliteratsiya xatosi");
+      return rejectWithValue(
+        error.message || "Gemini AI transliteratsiya xatosi"
+      );
     }
   }
 );
@@ -42,8 +44,8 @@ export const detectTextScript = createAsyncThunk(
       const script = detectScript(text);
 
       // Statistika hisoblash
-      const cyrillicCount = (text.match(/[а-яәғқңөүһ]/gi) || []).length;
-      const latinCount = (text.match(/[a-zәğqńöüşi]/gi) || []).length;
+      const cyrillicCount = (text.match(/[а-яәғқңөүһҳ]/gi) || []).length;
+      const latinCount = (text.match(/[a-zәğqńöüşıĞQŃÖÜŞI]/gi) || []).length;
       const totalLetters = cyrillicCount + latinCount;
 
       return {
@@ -101,6 +103,13 @@ const initialState = {
   showStatistics: true,
   autoDetect: true,
   preserveFormatting: true,
+
+  // Gemini AI specific
+  aiProvider: "gemini",
+  conversionQuality: "high", // high, balanced, fast
+
+  // Performance metrics
+  performanceMetrics: [],
 };
 
 const transliterateSlice = createSlice({
@@ -151,6 +160,14 @@ const transliterateSlice = createSlice({
       state.preserveFormatting = action.payload;
     },
 
+    setAiProvider: (state, action) => {
+      state.aiProvider = action.payload;
+    },
+
+    setConversionQuality: (state, action) => {
+      state.conversionQuality = action.payload;
+    },
+
     // Xatolarni tozalash
     clearErrors: (state) => {
       state.error = null;
@@ -176,12 +193,15 @@ const transliterateSlice = createSlice({
         from: action.payload.from,
         to: action.payload.to,
         mode: action.payload.mode,
+        aiProvider: state.aiProvider,
+        quality: state.conversionQuality,
         timestamp: new Date().toISOString(),
       };
 
       state.history.unshift(entry);
-      if (state.history.length > 20) {
-        state.history = state.history.slice(0, 20);
+      if (state.history.length > 50) {
+        // Increased history limit
+        state.history = state.history.slice(0, 50);
       }
     },
 
@@ -201,10 +221,43 @@ const transliterateSlice = createSlice({
     clearHistory: (state) => {
       state.history = [];
     },
+
+    // Performance tracking
+    addPerformanceMetric: (state, action) => {
+      const { operation, duration, inputLength, outputLength, success } =
+        action.payload;
+      if (!state.performanceMetrics) {
+        state.performanceMetrics = [];
+      }
+      state.performanceMetrics.push({
+        operation,
+        duration,
+        inputLength,
+        outputLength,
+        success,
+        timestamp: new Date().toISOString(),
+        aiProvider: state.aiProvider,
+        quality: state.conversionQuality,
+      });
+
+      // Keep only last 50 metrics
+      if (state.performanceMetrics.length > 50) {
+        state.performanceMetrics = state.performanceMetrics.slice(-50);
+      }
+    },
+
+    // Batch conversion results
+    setBatchResults: (state, action) => {
+      state.batchResults = action.payload;
+    },
+
+    clearBatchResults: (state) => {
+      state.batchResults = [];
+    },
   },
 
   extraReducers: (builder) => {
-    // convertText
+    // convertText with Gemini
     builder
       .addCase(convertText.pending, (state) => {
         state.isConverting = true;
@@ -223,17 +276,47 @@ const transliterateSlice = createSlice({
           from: action.payload.from,
           to: action.payload.to,
           mode: action.payload.mode,
+          aiProvider: state.aiProvider,
+          quality: state.conversionQuality,
           timestamp: new Date().toISOString(),
         };
 
         state.history.unshift(entry);
-        if (state.history.length > 20) {
-          state.history = state.history.slice(0, 20);
+        if (state.history.length > 50) {
+          state.history = state.history.slice(0, 50);
+        }
+
+        // Add performance metric
+        if (action.meta.startTime) {
+          const duration = Date.now() - action.meta.startTime;
+          transliterateSlice.caseReducers.addPerformanceMetric(state, {
+            payload: {
+              operation: "transliterate",
+              duration,
+              inputLength: state.originalText.length,
+              outputLength: action.payload.converted.length,
+              success: true,
+            },
+          });
         }
       })
       .addCase(convertText.rejected, (state, action) => {
         state.isConverting = false;
         state.error = action.payload;
+
+        // Add error metric
+        if (action.meta.startTime) {
+          const duration = Date.now() - action.meta.startTime;
+          transliterateSlice.caseReducers.addPerformanceMetric(state, {
+            payload: {
+              operation: "transliterate",
+              duration,
+              inputLength: state.originalText.length,
+              outputLength: 0,
+              success: false,
+            },
+          });
+        }
       });
 
     // detectTextScript
@@ -263,11 +346,16 @@ export const {
   setShowStatistics,
   setAutoDetect,
   setPreserveFormatting,
+  setAiProvider,
+  setConversionQuality,
   clearErrors,
   clearAll,
   addToHistory,
   loadFromHistory,
   clearHistory,
+  addPerformanceMetric,
+  setBatchResults,
+  clearBatchResults,
 } = transliterateSlice.actions;
 
 export default transliterateSlice.reducer;

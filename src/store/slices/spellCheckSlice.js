@@ -1,9 +1,9 @@
 // src/store/slices/spellCheckSlice.js
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { checkSpelling, correctText } from "@/utils/chatgptService";
+import { checkSpelling, correctText } from "@/utils/geminiService";
 
-// Async thunks
+// Async thunks for Gemini AI
 export const checkText = createAsyncThunk(
   "spellCheck/checkText",
   async ({ text, options = {} }, { rejectWithValue }) => {
@@ -16,7 +16,9 @@ export const checkText = createAsyncThunk(
 
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.message || "Imlo tekshirishda xato");
+      return rejectWithValue(
+        error.message || "Gemini AI imlo tekshirishda xato"
+      );
     }
   }
 );
@@ -33,7 +35,9 @@ export const correctFullText = createAsyncThunk(
 
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.message || "Matnni to'g'irlashda xato");
+      return rejectWithValue(
+        error.message || "Gemini AI matnni to'g'irlashda xato"
+      );
     }
   }
 );
@@ -60,7 +64,7 @@ const initialState = {
   selectedWordIndex: -1,
   showSuggestions: false,
   highlightErrors: true,
-  autoCheck: false, // ChatGPT API expensive bo'lgani uchun avtomatik o'chirildi
+  autoCheck: false, // Gemini API expensive bo'lgani uchun avtomatik o'chirildi
 
   // Takliflar
   currentSuggestions: [],
@@ -68,6 +72,10 @@ const initialState = {
   // Saqlangan versiyalar
   versions: [],
   currentVersion: 0,
+
+  // Gemini AI specific
+  aiProvider: "gemini", // gemini, openai
+  processingMode: "batch", // batch, realtime
 };
 
 const spellCheckSlice = createSlice({
@@ -90,21 +98,20 @@ const spellCheckSlice = createSlice({
       if (state.results[wordIndex]) {
         const result = state.results[wordIndex];
         const text = state.currentText;
-        const newText =
-          text.slice(0, result.start) + suggestion + text.slice(result.end);
+
+        // Word replacement with regex for better accuracy
+        const wordRegex = new RegExp(
+          `\\b${result.word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+          "g"
+        );
+        const newText = text.replace(wordRegex, suggestion);
 
         state.currentText = newText;
+        state.originalText = newText;
 
-        // Natijalarni yangilash
-        const lengthDiff = suggestion.length - result.word.length;
+        // Mark result as correct
         state.results[wordIndex].isCorrect = true;
         state.results[wordIndex].word = suggestion;
-
-        // Keyingi so'zlarning pozitsiyasini yangilash
-        for (let i = wordIndex + 1; i < state.results.length; i++) {
-          state.results[i].start += lengthDiff;
-          state.results[i].end += lengthDiff;
-        }
 
         state.selectedWordIndex = -1;
         state.showSuggestions = false;
@@ -131,6 +138,14 @@ const spellCheckSlice = createSlice({
       state.autoCheck = action.payload;
     },
 
+    setAiProvider: (state, action) => {
+      state.aiProvider = action.payload;
+    },
+
+    setProcessingMode: (state, action) => {
+      state.processingMode = action.payload;
+    },
+
     // Takliflarni yopish
     closeSuggestions: (state) => {
       state.showSuggestions = false;
@@ -146,6 +161,7 @@ const spellCheckSlice = createSlice({
           text: state.currentText,
           timestamp: new Date().toISOString(),
           type: "original",
+          aiProvider: state.aiProvider,
         });
 
         state.currentText = state.correctedText;
@@ -190,10 +206,31 @@ const spellCheckSlice = createSlice({
       state.versions = [];
       state.currentVersion = 0;
     },
+
+    // Performance tracking
+    addPerformanceMetric: (state, action) => {
+      const { operation, duration, tokensUsed, success } = action.payload;
+      if (!state.performanceMetrics) {
+        state.performanceMetrics = [];
+      }
+      state.performanceMetrics.push({
+        operation,
+        duration,
+        tokensUsed,
+        success,
+        timestamp: new Date().toISOString(),
+        aiProvider: state.aiProvider,
+      });
+
+      // Keep only last 50 metrics
+      if (state.performanceMetrics.length > 50) {
+        state.performanceMetrics = state.performanceMetrics.slice(-50);
+      }
+    },
   },
 
   extraReducers: (builder) => {
-    // checkText
+    // checkText with Gemini
     builder
       .addCase(checkText.pending, (state) => {
         state.isChecking = true;
@@ -203,13 +240,37 @@ const spellCheckSlice = createSlice({
         state.isChecking = false;
         state.results = action.payload.results || [];
         state.statistics = action.payload.statistics;
+
+        // Add performance metric
+        if (action.meta.startTime) {
+          const duration = Date.now() - action.meta.startTime;
+          spellCheckSlice.caseReducers.addPerformanceMetric(state, {
+            payload: {
+              operation: "spellCheck",
+              duration,
+              success: true,
+            },
+          });
+        }
       })
       .addCase(checkText.rejected, (state, action) => {
         state.isChecking = false;
         state.error = action.payload;
+
+        // Add error metric
+        if (action.meta.startTime) {
+          const duration = Date.now() - action.meta.startTime;
+          spellCheckSlice.caseReducers.addPerformanceMetric(state, {
+            payload: {
+              operation: "spellCheck",
+              duration,
+              success: false,
+            },
+          });
+        }
       });
 
-    // correctFullText
+    // correctFullText with Gemini
     builder
       .addCase(correctFullText.pending, (state) => {
         state.isCorrecting = true;
@@ -218,10 +279,34 @@ const spellCheckSlice = createSlice({
       .addCase(correctFullText.fulfilled, (state, action) => {
         state.isCorrecting = false;
         state.correctedText = action.payload.corrected;
+
+        // Add performance metric
+        if (action.meta.startTime) {
+          const duration = Date.now() - action.meta.startTime;
+          spellCheckSlice.caseReducers.addPerformanceMetric(state, {
+            payload: {
+              operation: "autoCorrect",
+              duration,
+              success: true,
+            },
+          });
+        }
       })
       .addCase(correctFullText.rejected, (state, action) => {
         state.isCorrecting = false;
         state.correctError = action.payload;
+
+        // Add error metric
+        if (action.meta.startTime) {
+          const duration = Date.now() - action.meta.startTime;
+          spellCheckSlice.caseReducers.addPerformanceMetric(state, {
+            payload: {
+              operation: "autoCorrect",
+              duration,
+              success: false,
+            },
+          });
+        }
       });
   },
 });
@@ -233,11 +318,14 @@ export const {
   selectWord,
   setHighlightErrors,
   setAutoCheck,
+  setAiProvider,
+  setProcessingMode,
   closeSuggestions,
   acceptCorrectedText,
   revertToVersion,
   clearErrors,
   clearAll,
+  addPerformanceMetric,
 } = spellCheckSlice.actions;
 
 export default spellCheckSlice.reducer;
