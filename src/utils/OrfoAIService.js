@@ -1,4 +1,4 @@
-// src/utils/OrfoAIService.js
+// src/utils/OrfoAIService.js - YANGILANGAN VERSIYA
 
 import axios from "axios";
 
@@ -337,11 +337,11 @@ export const autoTransliterate = async (text) => {
   return await transliterate(text, targetScript);
 };
 
-// Matnni yaxshilash - ma'nosini o'zgartirmasdan mukammallashtirish
+// Matnni yaxshilash - ma'nosini o'zgartirmasdan mukammallashtirish (TUZATILGAN)
 export const improveText = async (text, options = {}) => {
   const {
     language = "uz",
-    script,
+    script = "latin", // Default script qo'shildi
     style = "professional",
     level = 3,
   } = options;
@@ -377,6 +377,11 @@ export const improveText = async (text, options = {}) => {
       uz: "do'stona va samimiy",
       kaa: "достлық ҳәм самимий",
       ru: "дружелюбный и искренний",
+    },
+    humorous: {
+      uz: "hazilli va kulgili",
+      kaa: "ҳазилли ҳәм күлкили",
+      ru: "юмористический и веселый",
     },
   };
 
@@ -437,7 +442,9 @@ Qoidalar:
 - Takrorlarni kamaytiring
 - Matnni ravon va o'qishli qiling
 
-Faqat yaxshilangan matnni qaytaring, boshqa tushuntirish bermang. iltimos javobni ${script} uslubda yozing`;
+MUHIM: Javobni ${script === "cyrillic" ? "KIRILL" : "LOTIN"} alifbosida yozing!
+
+Faqat yaxshilangan matnni qaytaring, boshqa tushuntirish bermang.`;
   } else if (language === "kaa") {
     prompt = `Сиз профессионал мәтин муҳаррири ҳәм жазыўшысыз. Төмендеги мәтинди жақсыластырың ҳәм мукәммәллестириң.
 
@@ -459,8 +466,10 @@ Faqat yaxshilangan matnni qaytaring, boshqa tushuntirish bermang. iltimos javobn
 - Профессионал ҳәм әдебий тил қоллаң
 - Тақырарларды азайтың
 - Мәтинди раўан ҳәм оқылыслы қылың
+
+МУҲИМ: Жаўапты ${script === "cyrillic" ? "КИРИЛЛ" : "ЛАТИН"} әлипбесинде жазың!
  
-Тек жақсыластырылған мәтинди қайтарың, басқа түсиндирме бериң. Илтимас, қарақалпақ тилинде профессионал болсын. Және әлипбе ${script} болсын.`;
+Тек жақсыластырылған мәтинди қайтарың, басқа түсиндирме бермең.`;
   } else {
     prompt = `Вы профессиональный редактор и писатель. Улучшите и усовершенствуйте следующий текст.
 
@@ -483,6 +492,8 @@ Faqat yaxshilangan matnni qaytaring, boshqa tushuntirish bermang. iltimos javobn
 - Уменьшите повторы
 - Сделайте текст плавным и читаемым
 
+ВАЖНО: Ответ напишите ${script === "cyrillic" ? "НА КИРИЛЛИЦЕ" : "НА ЛАТИНИЦЕ"}!
+
 Верните только улучшенный текст, без дополнительных объяснений.`;
   }
 
@@ -495,6 +506,7 @@ Faqat yaxshilangan matnni qaytaring, boshqa tushuntirish bermang. iltimos javobn
         original: text,
         improved: improvedText.trim(),
         language: language,
+        script: script,
         style: style,
         level: level,
         improved_at: new Date().toISOString(),
@@ -505,6 +517,155 @@ Faqat yaxshilangan matnni qaytaring, boshqa tushuntirish bermang. iltimos javobn
     return {
       success: false,
       error: error.message || "Matn yaxshilashda xato",
+    };
+  }
+};
+
+// YANGI FUNKSIYA: Qo'shiq yaratish
+export const generateSong = async (options = {}) => {
+  const {
+    topic,
+    style = "classik",
+    language = "uz",
+    script = "latin",
+    conditions = "",
+  } = options;
+
+  const styleMap = {
+    classik: {
+      uz: "klassik an'anaviy uslub",
+      kaa: "классикалық дәстүрли услуб",
+      ru: "классический традиционный стиль",
+    },
+    rep: {
+      uz: "zamonaviy rep uslubi",
+      kaa: "замандас реп услуби",
+      ru: "современный рэп стиль",
+    },
+    adabiy: {
+      uz: "go'zal adabiy uslub",
+      kaa: "сулыў әдебий услуб",
+      ru: "красивый литературный стиль",
+    },
+    dardli: {
+      uz: "hissiyotli va dardli uslub",
+      kaa: "сезимли ҳәм дәртли услуб",
+      ru: "эмоциональный и грустный стиль",
+    },
+    hkz: {
+      uz: "xalq qo'shiqlari uslubi",
+      kaa: "халық жырлары услуби",
+      ru: "стиль народных песен",
+    },
+  };
+
+  const styleDesc = styleMap[style]?.[language] || styleMap.classik[language];
+
+  let prompt = "";
+
+  if (language === "uz") {
+    prompt = `Siz professional qo'shiq muallifi va she'rshunosssiz. Quyidagi ma'lumotlarga asosan professional qo'shiq yarating.
+
+Mavzu: "${topic}"
+Uslub: ${styleDesc}
+Qo'shimcha shartlar: ${conditions || "Maxsus shartlar yo'q"}
+
+Vazifalar:
+1. Kamida 3 kuplet (bait) qo'shiq yarating
+2. Har kupletda 4 qator bo'lsin
+3. Qofiya ABAB yoki AABB sxemasida bo'lsin
+4. ${styleDesc} da yozing
+5. Mavzuga mos, his-tuyg'uli va ta'sirli bo'lsin
+6. O'zbek tilida imloviy xatosiz yozing
+7. Eng mos keladigan musiqa janri va namuna qo'shiqlarni ham taklif qiling
+
+MUHIM: 
+- Javobni ${script === "cyrillic" ? "KIRILL" : "LOTIN"} alifbosida yozing!
+- Qo'shiq matnidan keyin mos musiqa tavsiyasini ham bering
+
+Format:
+[Qo'shiq matni]
+
+MUSIQA TAVSIYASI: [Janr va namuna qo'shiqlar]`;
+  } else if (language === "kaa") {
+    prompt = `Сиз профессионал жыр муәллифи ҳәм шайырсыз. Төмендеги мағлыўматларға асослана отырып, профессионал жыр жаратың.
+
+Мавзу: "${topic}"
+Услуб: ${styleDesc}
+Қосымша шартлар: ${conditions || "Арнаўлы шартлар жоқ"}
+
+Вазифалар:
+1. Камида 3 куплет жыр жаратың
+2. Ҳәр куплетте 4 жол болсын
+3. Қафия ABAB я AABB схемасында болсын
+4. ${styleDesc} да жазың
+5. Мавзуға лайық, сезимли ҳәм тәсирли болсын
+6. Қарақалпақ тилинде имлалық қатесиз жазың
+7. Ең лайықлы мусиқа жанры ҳәм үлги жырларды да усыныс бериң
+
+МУҲИМ: 
+- Жаўапты ${script === "cyrillic" ? "КИРИЛЛ" : "ЛАТИН"} әлипбесинде жазың!
+- Жыр мәтининен кейин лайықлы мусиқа усынысын да бериң
+
+Формат:
+[Жыр мәтини]
+
+МУСИҚА УСЫНЫСЫ: [Жанр ҳәм үлги жырлар]`;
+  } else {
+    prompt = `Вы профессиональный автор песен и поэт. Создайте профессиональную песню на основе следующей информации.
+
+Тема: "${topic}"
+Стиль: ${styleDesc}
+Дополнительные условия: ${conditions || "Особых условий нет"}
+
+Задачи:
+1. Создайте минимум 3 куплета песни
+2. В каждом куплете должно быть 4 строки
+3. Рифма должна быть по схеме ABAB или AABB
+4. Пишите в ${styleDesc}
+5. Должна соответствовать теме, быть эмоциональной и впечатляющей
+6. Пишите на русском языке без орфографических ошибок
+7. Также предложите наиболее подходящий музыкальный жанр и образцы песен
+
+ВАЖНО:
+- Ответ напишите ${script === "cyrillic" ? "НА КИРИЛЛИЦЕ" : "НА ЛАТИНИЦЕ"}!
+- После текста песни дайте также музыкальную рекомендацию
+
+Формат:
+[Текст песни]
+
+МУЗЫКАЛЬНАЯ РЕКОМЕНДАЦИЯ: [Жанр и образцы песен]`;
+  }
+
+  try {
+    const content = await sendGeminiRequest(prompt);
+
+    // Qo'shiq va musiqa tavsiyasini ajratish
+    const parts = content.split(
+      /MUSIQA TAVSIYASI:|МУСИҚА УСЫНЫСЫ:|МУЗЫКАЛЬНАЯ РЕКОМЕНДАЦИЯ:/i
+    );
+
+    const song = parts[0]?.trim() || content;
+    const recommendedMusic = parts[1]?.trim() || "Musiqa tavsiyasi topilmadi";
+
+    return {
+      success: true,
+      data: {
+        song: song,
+        recommendedMusic: recommendedMusic,
+        topic: topic,
+        style: style,
+        language: language,
+        script: script,
+        conditions: conditions,
+        generated_at: new Date().toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error("Song generation error:", error);
+    return {
+      success: false,
+      error: error.message || "Qo'shiq yaratishda xato",
     };
   }
 };
