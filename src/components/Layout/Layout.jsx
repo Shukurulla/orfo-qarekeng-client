@@ -257,7 +257,6 @@ const Layout = ({ children }) => {
                 </h2>
               </div>
             </div>
-
             <div className="flex items-center space-x-2">
               {/* Theme toggle for mobile */}
               {isMobile && (
