@@ -80,11 +80,26 @@ const DocumentGenerator = () => {
 
   // Qo'shiq uslublari
   const songStyleOptions = [
-    { value: "classik", label: "Klassik", icon: "🎼", desc: "An'anaviy uslubda" },
+    {
+      value: "classik",
+      label: "Klassik",
+      icon: "🎼",
+      desc: "An'anaviy uslubda",
+    },
     { value: "rep", label: "Rep", icon: "🎤", desc: "Zamonaviy rep uslubida" },
     { value: "adabiy", label: "Adabiy", icon: "📚", desc: "Go'zal adabiy til" },
-    { value: "dardli", label: "Dardli", icon: "💔", desc: "Hissiyotli va dardli" },
-    { value: "hkz", label: "Halk", icon: "🎵", desc: "Xalq qo'shiqlari uslubida" },
+    {
+      value: "dardli",
+      label: "Dardli",
+      icon: "💔",
+      desc: "Hissiyotli va dardli",
+    },
+    {
+      value: "hkz",
+      label: "Halk",
+      icon: "🎵",
+      desc: "Xalq qo'shiqlari uslubida",
+    },
   ];
 
   const styleTypes = [
@@ -217,7 +232,13 @@ const DocumentGenerator = () => {
     } finally {
       setIsImproving(false);
     }
-  }, [inputText, selectedLanguage, selectedScript, styleType, improvementLevel]);
+  }, [
+    inputText,
+    selectedLanguage,
+    selectedScript,
+    styleType,
+    improvementLevel,
+  ]);
 
   // Qo'shiq yaratish
   const handleGenerateSong = useCallback(async () => {
@@ -247,7 +268,11 @@ const DocumentGenerator = () => {
         setGeneratedSong(response.data.song);
         setRecommendedMusic(response.data.recommendedMusic);
         setShowResult(true);
-        message.success("Qo'shiq muvaffaqiyatli yaratildi!");
+
+        const spellCheckedMsg = response.data.spellChecked
+          ? " (Imloviy xatolar tekshirildi va to'g'irlandi)"
+          : "";
+        message.success(`Qo'shiq muvaffaqiyatli yaratildi!${spellCheckedMsg}`);
       } else {
         setError(response.error);
         message.error("Qo'shiq yaratishda xato yuz berdi");
@@ -291,8 +316,9 @@ const DocumentGenerator = () => {
 
   // Yuklab olish
   const handleDownload = useCallback(() => {
-    const textToDownload = contentType === "song" ? generatedSong : improvedText;
-    
+    const textToDownload =
+      contentType === "song" ? generatedSong : improvedText;
+
     if (!textToDownload.trim()) {
       message.warning("Yuklab olish uchun matn yo'q");
       return;
@@ -306,7 +332,9 @@ const DocumentGenerator = () => {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
-    message.success(`${contentType === "song" ? "Qo'shiq" : "Matn"} yuklab olindi`);
+    message.success(
+      `${contentType === "song" ? "Qo'shiq" : "Matn"} yuklab olindi`
+    );
   }, [improvedText, generatedSong, contentType]);
 
   return (
@@ -440,7 +468,12 @@ const DocumentGenerator = () => {
                 <Button
                   icon={<ClearOutlined />}
                   onClick={handleClear}
-                  disabled={!inputText.trim() && !songTopic.trim() && !improvedText.trim() && !generatedSong.trim()}
+                  disabled={
+                    !inputText.trim() &&
+                    !songTopic.trim() &&
+                    !improvedText.trim() &&
+                    !generatedSong.trim()
+                  }
                 >
                   Tozalash
                 </Button>
@@ -475,7 +508,8 @@ const DocumentGenerator = () => {
               <Col xs={24} md={showScriptSelector ? 8 : 10}>
                 <Text strong>Uslub:</Text>{" "}
                 {styleTypes.find((s) => s.value === styleType)?.label} |{" "}
-                <Text strong>Daraja:</Text> {getLevelDescription(improvementLevel)}
+                <Text strong>Daraja:</Text>{" "}
+                {getLevelDescription(improvementLevel)}
               </Col>
             )}
             {contentType === "song" && (
@@ -532,7 +566,19 @@ const DocumentGenerator = () => {
               <div className="relative">
                 {isImproving && (
                   <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 z-10 flex items-center justify-center rounded-lg">
-                    <Spin size="large" tip="Gemini AI matnni yaxshilayapti..." />
+                    <div className="text-center">
+                      <Spin size="large" />
+                      <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        Gemini AI matnni yaxshilayapti va imloviy xatolarni
+                        tekshirayapti...
+                      </div>
+                      <div className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                        ✓ Professional yaxshilash
+                        <br />
+                        ✓ Imloviy to'g'rilik
+                        <br />✓ Uslub mukammalligi
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -597,7 +643,22 @@ AI bu matnni tanlangan uslub va darajaga qarab yaxshilaydi:
               <div className="relative">
                 {isImproving && (
                   <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 z-10 flex items-center justify-center rounded-lg">
-                    <Spin size="large" tip="Gemini AI qo'shiq yaratayapti..." />
+                    <div className="text-center">
+                      <Spin size="large" />
+                      <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        {contentType === "song"
+                          ? "🎵 Gemini AI qo'shiq yaratayapti va imloviy xatolarni tekshirayapti..."
+                          : "Gemini AI matnni yaxshilayapti..."}
+                      </div>
+                      {contentType === "song" && (
+                        <div className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                          ✓ 1-bosqich: Qo'shiq yaratish
+                          <br />
+                          ✓ 2-bosqich: Imlo tekshirish
+                          <br />✓ 3-bosqich: Mukammallashtirish
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -638,7 +699,9 @@ Masalan:
 
                   <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                     <Text className="text-sm text-blue-800 dark:text-blue-200">
-                      <strong>AI Qo'shiq yaratuvchi:</strong> Tanlangan uslub va tilga mos holda professional qo'shiq matnini yaratadi va mos musiqa tavsiya qiladi.
+                      <strong>AI Qo'shiq yaratuvchi:</strong> Tanlangan uslub va
+                      tilga mos holda professional qo'shiq matnini yaratadi va
+                      mos musiqa tavsiya qiladi.
                     </Text>
                   </div>
                 </div>
@@ -659,16 +722,33 @@ Masalan:
                 title={
                   <Space>
                     <CheckOutlined className="text-green-500" />
-                    <span>{contentType === "song" ? "Yaratilgan qo'shiq" : "Yaxshilangan matn"}</span>
+                    <span>
+                      {contentType === "song"
+                        ? "Yaratilgan qo'shiq"
+                        : "Yaxshilangan matn"}
+                    </span>
                     <Tag color="green">Tayyor</Tag>
+                    {contentType === "song" && (
+                      <Tag color="blue" icon={<CheckOutlined />}>
+                        Imloviy tekshirilgan
+                      </Tag>
+                    )}
                   </Space>
                 }
                 extra={
                   <Space>
                     <Button
                       icon={<CopyOutlined />}
-                      onClick={() => handleCopy(contentType === "song" ? generatedSong : improvedText)}
-                      disabled={!(contentType === "song" ? generatedSong.trim() : improvedText.trim())}
+                      onClick={() =>
+                        handleCopy(
+                          contentType === "song" ? generatedSong : improvedText
+                        )
+                      }
+                      disabled={
+                        !(contentType === "song"
+                          ? generatedSong.trim()
+                          : improvedText.trim())
+                      }
                     >
                       Nusxalash
                     </Button>
@@ -677,7 +757,11 @@ Masalan:
                       type="primary"
                       icon={<DownloadOutlined />}
                       onClick={handleDownload}
-                      disabled={!(contentType === "song" ? generatedSong.trim() : improvedText.trim())}
+                      disabled={
+                        !(contentType === "song"
+                          ? generatedSong.trim()
+                          : improvedText.trim())
+                      }
                     >
                       Yuklab olish
                     </Button>
@@ -687,7 +771,9 @@ Masalan:
               >
                 <div className="relative">
                   <TextArea
-                    value={contentType === "song" ? generatedSong : improvedText}
+                    value={
+                      contentType === "song" ? generatedSong : improvedText
+                    }
                     readOnly
                     className="min-h-[400px] resize-none bg-gray-50 dark:bg-gray-800"
                     style={{
@@ -707,7 +793,13 @@ Masalan:
                   )}
 
                   <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
-                    <span>Belgilar: {(contentType === "song" ? generatedSong : improvedText).length}</span>
+                    <span>
+                      Belgilar:{" "}
+                      {
+                        (contentType === "song" ? generatedSong : improvedText)
+                          .length
+                      }
+                    </span>
                     <span>
                       So'zlar:{" "}
                       {
@@ -774,12 +866,15 @@ Masalan:
 
                       <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
                         <Text className="text-sm text-green-800 dark:text-green-200">
-                          <strong>AI Qo'shiq yaratuvchi:</strong> Kamida 3 kuplet qo'shiq yaratadi va mos musiqa tavsiya qiladi!
+                          <strong>AI Qo'shiq yaratuvchi:</strong> Kamida 3
+                          kuplet qo'shiq yaratadi va mos musiqa tavsiya qiladi!
                         </Text>
                       </div>
                     </div>
                   </>
-                ) : ""}
+                ) : (
+                  ""
+                )}
               </div>
             </Card>
           </Col>

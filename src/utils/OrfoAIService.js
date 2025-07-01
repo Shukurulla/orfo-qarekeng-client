@@ -1,19 +1,19 @@
-// src/utils/OrfoAIService.js - YANGILANGAN VERSIYA
+// src/utils/OrfoAIService.js - YANGILANGAN VERSIYA (Anthropic Claude 3.7 API uchun)
 
 import axios from "axios";
 
-// RapidAPI Gemini Pro konfiguratsiyasi
-const RAPIDAPI_KEY = import.meta.env.VITE_RAPIDAPI_KEY;
-const RAPIDAPI_HOST = "gemini-pro-ai.p.rapidapi.com";
-const RAPIDAPI_URL = "https://gemini-pro-ai.p.rapidapi.com/";
+// Anthropic Claude API konfiguratsiyasi
+const ANTHROPIC_API_KEY =
+  "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";
+const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
 // Axios instance yaratish
-const rapidApiClient = axios.create({
-  baseURL: RAPIDAPI_URL,
+const anthropicApiClient = axios.create({
+  baseURL: ANTHROPIC_API_URL,
   timeout: 60000, // 60 sekund
   headers: {
-    "x-rapidapi-key": RAPIDAPI_KEY,
-    "x-rapidapi-host": RAPIDAPI_HOST,
+    "x-api-key": ANTHROPIC_API_KEY,
+    "anthropic-version": "2023-06-01",
     "Content-Type": "application/json",
   },
 });
@@ -31,33 +31,27 @@ export const detectScript = (text) => {
   return "mixed";
 };
 
-// RapidAPI Gemini Pro so'rovi yuborish
-const sendGeminiRequest = async (prompt) => {
+// Anthropic Claude API so'rovi yuborish
+const sendClaudeRequest = async (prompt) => {
   try {
-    const response = await rapidApiClient.post("", {
-      contents: [
+    const response = await anthropicApiClient.post("", {
+      model: "claude-3-7-sonnet-20241022",
+      max_tokens: 1024,
+      messages: [
         {
           role: "user",
-          parts: [
-            {
-              text: prompt,
-            },
-          ],
+          content: prompt,
         },
       ],
     });
 
-    if (
-      response.data &&
-      response.data.candidates &&
-      response.data.candidates[0]
-    ) {
-      return response.data.candidates[0].content.parts[0].text;
+    if (response.data && response.data.content && response.data.content[0]) {
+      return response.data.content[0].text;
     } else {
-      throw new Error("Invalid response format from Gemini API");
+      throw new Error("Invalid response format from Anthropic Claude API");
     }
   } catch (error) {
-    console.error("RapidAPI Gemini error:", error);
+    console.error("Anthropic Claude error:", error);
 
     if (error.response) {
       // API dan qaytgan xato
@@ -66,7 +60,7 @@ const sendGeminiRequest = async (prompt) => {
       throw new Error(`API Error: ${status} - ${message}`);
     } else if (error.request) {
       // Network xato
-      throw new Error("Network error: Unable to connect to RapidAPI Gemini");
+      throw new Error("Network error: Unable to connect to Anthropic Claude");
     } else {
       // Boshqa xatolar
       throw new Error(error.message || "Unknown error occurred");
@@ -96,19 +90,18 @@ const cleanAndParseJSON = (text) => {
 
     // Noto'g'ri escape sequencelarni to'g'irlash
     cleanText = cleanText
-      .replace(/\\"/g, '"') // Noto'g'ri escape qilingan qo'shtirnoqlar
-      .replace(/\\n/g, " ") // Newline larni bo'sh joy bilan almashtirish
-      .replace(/\\t/g, " ") // Tab larni bo'sh joy bilan almashtirish
-      .replace(/\n/g, " ") // Haqiqiy newline larni ham tozalash
-      .replace(/\t/g, " ") // Haqiqiy tab larni ham tozalash
-      .replace(/\\/g, "") // Boshqa backslash larni olib tashlash
-      .replace(/,(\s*[}\]])/g, "$1"); // Oxirgi vergullarni olib tashlash
+      .replace(/\\"/g, '"')
+      .replace(/\\n/g, " ")
+      .replace(/\\t/g, " ")
+      .replace(/\n/g, " ")
+      .replace(/\t/g, " ")
+      .replace(/\\/g, "")
+      .replace(/,(\s*[}\]])/g, "$1");
 
     // Bo'sh string larni to'g'irlash
     cleanText = cleanText.replace(
       /:\s*"([^"]*)"([^,}\]]*)/g,
       (match, content, after) => {
-        // Agar qo'shtirnoq ichida noto'g'ri belgilar bo'lsa
         const cleanContent = content.replace(/[^\w\s\-\.]/g, "");
         return `: "${cleanContent}"${after}`;
       }
@@ -120,17 +113,16 @@ const cleanAndParseJSON = (text) => {
       console.error("JSON cleaning failed too:", secondError);
       console.log("Clean text:", cleanText);
 
-      // Oxirgi urinish: oddiy structure yaratish
       return {
         results: [],
-        error: "Failed to parse Gemini response",
+        error: "Failed to parse Claude response",
         rawResponse: text.substring(0, 500) + "...",
       };
     }
   }
 };
 
-// Imlo tekshirish uchun RapidAPI Gemini so'rovi
+// Imlo tekshirish uchun Anthropic Claude so'rovi
 export const checkSpelling = async (text) => {
   const script = detectScript(text);
   const isLatin = script === "latin" || script === "mixed";
@@ -165,19 +157,18 @@ Expected JSON format:
 Response must be valid JSON only. No explanations or additional text.`;
 
   try {
-    const content = await sendGeminiRequest(prompt);
-    console.log("Raw Gemini response:", content);
+    const content = await sendClaudeRequest(prompt);
+    console.log("Raw Claude response:", content);
 
     // JSON ni tozalash va parse qilish
     const parsedResult = cleanAndParseJSON(content);
 
     if (!parsedResult.results) {
-      // Agar results yo'q bo'lsa, fallback yaratish
       console.warn("No results in parsed data, creating fallback");
       const words = text.split(/\s+/).filter((w) => w.trim());
       parsedResult.results = words.map((word) => ({
         word: word.replace(/[.,!?;:"'()]/g, ""),
-        isCorrect: true, // Default to correct if parsing failed
+        isCorrect: true,
         suggestions: [],
       }));
     }
@@ -198,7 +189,6 @@ Response must be valid JSON only. No explanations or additional text.`;
         result.end = result.start + result.word.length;
         currentPos = wordIndex + 1;
       } else {
-        // Agar pozitsiya topilmasa, taxminiy pozitsiya
         result.start = 0;
         result.end = result.word.length;
       }
@@ -227,10 +217,10 @@ Response must be valid JSON only. No explanations or additional text.`;
       data: parsedResult,
     };
   } catch (error) {
-    console.error("RapidAPI Gemini API error:", error);
+    console.error("Anthropic Claude API error:", error);
     return {
       success: false,
-      error: error.message || "RapidAPI Gemini bilan bog'lanishda xato",
+      error: error.message || "Anthropic Claude bilan bog'lanishda xato",
     };
   }
 };
@@ -254,7 +244,7 @@ Instructions:
 Corrected text:`;
 
   try {
-    const correctedText = await sendGeminiRequest(prompt);
+    const correctedText = await sendClaudeRequest(prompt);
 
     return {
       success: true,
@@ -264,10 +254,10 @@ Corrected text:`;
       },
     };
   } catch (error) {
-    console.error("RapidAPI Gemini API error:", error);
+    console.error("Anthropic Claude API error:", error);
     return {
       success: false,
-      error: error.message || "RapidAPI Gemini bilan bog'lanishda xato",
+      error: error.message || "Anthropic Claude bilan bog'lanishda xato",
     };
   }
 };
@@ -309,7 +299,7 @@ a→а, ә→ә, b→б, v→в, g→г, ğ→ғ, d→д, e→е, j→ж, z→з
 Return only the converted text, nothing else.`;
 
   try {
-    const convertedText = await sendGeminiRequest(prompt);
+    const convertedText = await sendClaudeRequest(prompt);
 
     return {
       success: true,
@@ -321,10 +311,10 @@ Return only the converted text, nothing else.`;
       },
     };
   } catch (error) {
-    console.error("RapidAPI Gemini API error:", error);
+    console.error("Anthropic Claude API error:", error);
     return {
       success: false,
-      error: error.message || "RapidAPI Gemini bilan bog'lanishda xato",
+      error: error.message || "Anthropic Claude bilan bog'lanishda xato",
     };
   }
 };
@@ -337,11 +327,11 @@ export const autoTransliterate = async (text) => {
   return await transliterate(text, targetScript);
 };
 
-// Matnni yaxshilash - ma'nosini o'zgartirmasdan mukammallashtirish (TUZATILGAN)
+// Matnni yaxshilash - ma'nosini o'zgartirmasdan mukammallashtirish
 export const improveText = async (text, options = {}) => {
   const {
     language = "uz",
-    script = "latin", // Default script qo'shildi
+    script = "latin",
     style = "professional",
     level = 3,
   } = options;
@@ -498,7 +488,7 @@ Faqat yaxshilangan matnni qaytaring, boshqa tushuntirish bermang.`;
   }
 
   try {
-    const improvedText = await sendGeminiRequest(prompt);
+    const improvedText = await sendClaudeRequest(prompt);
 
     return {
       success: true,
@@ -521,7 +511,7 @@ Faqat yaxshilangan matnni qaytaring, boshqa tushuntirish bermang.`;
   }
 };
 
-// YANGI FUNKSIYA: Qo'shiq yaratish
+// Imloviy xatosiz qo'shiq yaratish (Ikki bosqichli)
 export const generateSong = async (options = {}) => {
   const {
     topic,
@@ -531,122 +521,178 @@ export const generateSong = async (options = {}) => {
     conditions = "",
   } = options;
 
+  console.log("🎵 Song generation started:", {
+    topic,
+    style,
+    language,
+    script,
+  });
+
   const styleMap = {
     classik: {
       uz: "klassik an'anaviy uslub",
       kaa: "классикалық дәстүрли услуб",
       ru: "классический традиционный стиль",
+      en: "classic traditional style",
     },
     rep: {
       uz: "zamonaviy rep uslubi",
       kaa: "замандас реп услуби",
       ru: "современный рэп стиль",
+      en: "modern rap style",
     },
     adabiy: {
       uz: "go'zal adabiy uslub",
       kaa: "сулыў әдебий услуб",
       ru: "красивый литературный стиль",
+      en: "beautiful literary style",
     },
     dardli: {
       uz: "hissiyotli va dardli uslub",
       kaa: "сезимли ҳәм дәртли услуб",
       ru: "эмоциональный и грустный стиль",
+      en: "emotional and melancholic style",
     },
     hkz: {
       uz: "xalq qo'shiqlari uslubi",
       kaa: "халық жырлары услуби",
       ru: "стиль народных песен",
+      en: "folk song style",
     },
   };
 
   const styleDesc = styleMap[style]?.[language] || styleMap.classik[language];
 
-  let prompt = "";
+  // STAGE 1: Song creation
+  let songPrompt = `You are a professional songwriter and poet. Create a professional song based on the following information.
 
-  if (language === "uz") {
-    prompt = `Siz professional qo'shiq muallifi va she'rshunosssiz. Quyidagi ma'lumotlarga asosan professional qo'shiq yarating.
+Topic: "${topic}"
+Style: ${styleMap[style]?.en || styleMap.classik.en}
+Additional conditions: ${conditions || "No special conditions"}
 
-Mavzu: "${topic}"
-Uslub: ${styleDesc}
-Qo'shimcha shartlar: ${conditions || "Maxsus shartlar yo'q"}
+ORTHOGRAPHIC CORRECTNESS REQUIREMENTS:
+- Write in perfect ${
+    language === "uz" ? "Uzbek" : language === "kaa" ? "Karakalpak" : "Russian"
+  } with impeccable spelling
+- Carefully check each word
+- Adhere to grammatical and syntactic rules
+- Use professional literary language
 
-Vazifalar:
-1. Kamida 3 kuplet (bait) qo'shiq yarating
-2. Har kupletda 4 qator bo'lsin
-3. Qofiya ABAB yoki AABB sxemasida bo'lsin
-4. ${styleDesc} da yozing
-5. Mavzuga mos, his-tuyg'uli va ta'sirli bo'lsin
-6. O'zbek tilida imloviy xatosiz yozing
-7. Eng mos keladigan musiqa janri va namuna qo'shiqlarni ham taklif qiling
+Tasks:
+1. Create a song with at least 3 verses
+2. Each verse should have 4 lines
+3. Rhyme scheme should be ABAB or AABB
+4. Write in the ${styleMap[style]?.en || styleMap.classik.en} style
+5. Ensure it matches the topic, is emotional, and impactful
+6. Write WITHOUT SPELLING ERRORS - this is critical!
+7. Suggest the most suitable music genre and sample songs
 
-MUHIM: 
-- Javobni ${script === "cyrillic" ? "KIRILL" : "LOTIN"} alifbosida yozing!
-- Qo'shiq matnidan keyin mos musiqa tavsiyasini ham bering
+IMPORTANT:
+- Write the response in ${script === "cyrillic" ? "CYRILLIC" : "LATIN"} script!
+- Check every word for spelling accuracy!
+- Provide a music recommendation after the song text
 
 Format:
-[Qo'shiq matni]
+[Song text]
 
-MUSIQA TAVSIYASI: [Janr va namuna qo'shiqlar]`;
-  } else if (language === "kaa") {
-    prompt = `Сиз профессионал жыр муәллифи ҳәм шайырсыз. Төмендеги мағлыўматларға асослана отырып, профессионал жыр жаратың.
-
-Мавзу: "${topic}"
-Услуб: ${styleDesc}
-Қосымша шартлар: ${conditions || "Арнаўлы шартлар жоқ"}
-
-Вазифалар:
-1. Камида 3 куплет жыр жаратың
-2. Ҳәр куплетте 4 жол болсын
-3. Қафия ABAB я AABB схемасында болсын
-4. ${styleDesc} да жазың
-5. Мавзуға лайық, сезимли ҳәм тәсирли болсын
-6. Қарақалпақ тилинде имлалық қатесиз жазың
-7. Ең лайықлы мусиқа жанры ҳәм үлги жырларды да усыныс бериң
-
-МУҲИМ: 
-- Жаўапты ${script === "cyrillic" ? "КИРИЛЛ" : "ЛАТИН"} әлипбесинде жазың!
-- Жыр мәтининен кейин лайықлы мусиқа усынысын да бериң
-
-Формат:
-[Жыр мәтини]
-
-МУСИҚА УСЫНЫСЫ: [Жанр ҳәм үлги жырлар]`;
-  } else {
-    prompt = `Вы профессиональный автор песен и поэт. Создайте профессиональную песню на основе следующей информации.
-
-Тема: "${topic}"
-Стиль: ${styleDesc}
-Дополнительные условия: ${conditions || "Особых условий нет"}
-
-Задачи:
-1. Создайте минимум 3 куплета песни
-2. В каждом куплете должно быть 4 строки
-3. Рифма должна быть по схеме ABAB или AABB
-4. Пишите в ${styleDesc}
-5. Должна соответствовать теме, быть эмоциональной и впечатляющей
-6. Пишите на русском языке без орфографических ошибок
-7. Также предложите наиболее подходящий музыкальный жанр и образцы песен
-
-ВАЖНО:
-- Ответ напишите ${script === "cyrillic" ? "НА КИРИЛЛИЦЕ" : "НА ЛАТИНИЦЕ"}!
-- После текста песни дайте также музыкальную рекомендацию
-
-Формат:
-[Текст песни]
-
-МУЗЫКАЛЬНАЯ РЕКОМЕНДАЦИЯ: [Жанр и образцы песен]`;
-  }
+MUSIC RECOMMENDATION: [Genre and sample songs]`;
 
   try {
-    const content = await sendGeminiRequest(prompt);
+    console.log("📝 Stage 1: Generating song...");
 
-    // Qo'shiq va musiqa tavsiyasini ajratish
-    const parts = content.split(
-      /MUSIQA TAVSIYASI:|МУСИҚА УСЫНЫСЫ:|МУЗЫКАЛЬНАЯ РЕКОМЕНДАЦИЯ:/i
-    );
+    // STAGE 1: Song creation
+    const initialContent = await sendClaudeRequest(songPrompt);
 
-    const song = parts[0]?.trim() || content;
-    const recommendedMusic = parts[1]?.trim() || "Musiqa tavsiyasi topilmadi";
+    // Separate song and music recommendation
+    const parts = initialContent.split(/MUSIC RECOMMENDATION:/i);
+
+    let song = parts[0]?.trim() || initialContent;
+    const recommendedMusic =
+      parts[1]?.trim() || "No music recommendation found";
+
+    console.log("✅ Stage 1 completed. Generated song length:", song.length);
+
+    // STAGE 2: Additional spell-checking for Karakalpak
+    if (language === "kaa") {
+      console.log("🔍 Stage 2: Karakalpak spelling check...");
+
+      // Spell-checking prompt
+      const spellCheckPrompt = `You are a professional Karakalpak language spell-checker. Check the following song text in ${
+        script === "cyrillic" ? "Cyrillic" : "Latin"
+      } script for spelling accuracy and correct all errors.
+
+Song text: "${song}"
+
+MANDATORY REQUIREMENTS:
+1. Check each word according to the correct spelling in ${
+        script === "cyrillic" ? "Cyrillic" : "Latin"
+      } script
+2. Correct all spelling and grammatical errors
+3. Adhere to official Karakalpak spelling rules
+4. Use the correct alphabet: ${
+        script === "cyrillic"
+          ? "а, ә, б, в, г, ғ, д, е, ё, ж, з, и, й, к, қ, л, м, н, ң, о, ө, п, р, с, т, у, ү, ў, ф, х, ҳ, ц, ч, ш, ы, ю, я"
+          : "a, á, b, v, g, ģ, d, e, yo, j, z, i, y, k, q, l, m, n, ń, o, ó, p, r, s, t, u, ú, w, f, x, h, c, ch, sh, ı, yu, ya"
+      }
+5. Ensure the song is clear, fluent, and orthographically perfect
+6. Preserve the meaning and poetic quality of the text
+7. The text should be completely free of spelling errors. Do not mix Kazakh or Uzbek. It should be in pure Karakalpak. Do not allow spelling errors either.
+RETURN ONLY THE CORRECTED SONG TEXT, NOTHING ELSE!`;
+
+      try {
+        const correctedSong = await sendClaudeRequest(spellCheckPrompt);
+
+        if (correctedSong && correctedSong.trim().length > 50) {
+          song = correctedSong.trim();
+          console.log(
+            "✅ Stage 2 completed. Spelling corrected. New length:",
+            song.length
+          );
+        } else {
+          console.log(
+            "⚠️ Stage 2: Correction too short, original text retained"
+          );
+        }
+      } catch (spellCheckError) {
+        console.warn("⚠️ Stage 2 error:", spellCheckError.message);
+        console.log("Original song retained");
+      }
+    }
+
+    // STAGE 3: Additional spell-checking for Uzbek
+    if (language === "uz") {
+      console.log("🔍 Stage 3: Uzbek spelling check...");
+
+      const uzSpellCheckPrompt = `You are a professional Uzbek language spell-checker. Check the following song text in ${
+        script === "cyrillic" ? "Cyrillic" : "Latin"
+      } script for spelling accuracy and correct all errors.
+
+Song text: "${song}"
+
+MANDATORY REQUIREMENTS:
+1. Check each word according to the correct spelling in ${
+        script === "cyrillic" ? "Cyrillic" : "Latin"
+      } script
+2. Correct all spelling and grammatical errors
+3. Adhere to official Uzbek spelling rules
+4. Ensure the song is clear, fluent, and orthographically perfect
+5. Preserve the meaning and poetic quality of the text
+
+RETURN ONLY THE CORRECTED SONG TEXT, NOTHING ELSE!`;
+
+      try {
+        const correctedUzSong = await sendClaudeRequest(uzSpellCheckPrompt);
+
+        if (correctedUzSong && correctedUzSong.trim().length > 50) {
+          song = correctedUzSong.trim();
+          console.log("✅ Stage 3 completed. Uzbek spelling corrected.");
+        }
+      } catch (uzSpellCheckError) {
+        console.warn("⚠️ Stage 3 error:", uzSpellCheckError.message);
+      }
+    }
+
+    console.log("🎉 Song generation completed. Final length:", song.length);
 
     return {
       success: true,
@@ -658,14 +704,15 @@ MUSIQA TAVSIYASI: [Janr va namuna qo'shiqlar]`;
         language: language,
         script: script,
         conditions: conditions,
+        spellChecked: true,
         generated_at: new Date().toISOString(),
       },
     };
   } catch (error) {
-    console.error("Song generation error:", error);
+    console.error("❌ Song generation error:", error);
     return {
       success: false,
-      error: error.message || "Qo'shiq yaratishda xato",
+      error: error.message || "Error generating song",
     };
   }
 };
@@ -681,30 +728,30 @@ export const validateInput = async (text, language = "uz") => {
   const langName = langMap[language] || "o'zbek";
 
   const prompt = `Siz professional matn tahlilchisiz. Quyidagi matnni tahlil qiling va yuridik hujjat (shartnoma, kelishuv, ariza, va hokazo) yaratish uchun mos yoki yo'qligini aniqlang.
-
-Matn: "${text}"
-Til: ${langName}
-
-Tekshirish mezonlari:
-1. Matn ma'noli va tushunarli bo'lishi kerak
-2. Aniq bir mavzu yoki maqsadga tegishli bo'lishi kerak 
-3. "dasdasda", "test", "aaa" kabi ma'nosiz matnlar bo'lmasligi kerak
-4. Yuridik hujjat yaratish uchun yetarli ma'lumot bo'lishi kerak
-5. Kamida 2-3 ta asosiy g'oya yoki faktni o'z ichiga olishi kerak
-
-Javob formatini JSON ko'rinishida bering:
-{
+ 
+ Matn: "${text}"
+ Til: ${langName}
+ 
+ Tekshirish mezonlari:
+ 1. Matn ma'noli va tushunarli bo'lishi kerak
+ 2. Aniq bir mavzu yoki maqsadga tegishli bo'lishi kerak 
+ 3. "dasdasda", "test", "aaa" kabi ma'nosiz matnlar bo'lmasligi kerak
+ 4. Yuridik hujjat yaratish uchun yetarli ma'lumot bo'lishi kerak
+ 5. Kamida 2-3 ta asosiy g'oya yoki faktni o'z ichiga olishi kerak
+ 
+ Javob formatini JSON ko'rinishida bering:
+ {
   "isValid": true/false,
   "reason": "nima uchun mos/mos emas",
   "suggestions": ["taklif 1", "taklif 2", "taklif 3"],
   "topic": "matn mavzusi",
   "confidence": 85
-}
-
-Faqat JSON formatda javob bering.`;
+ }
+ 
+ Faqat JSON formatda javob bering.`;
 
   try {
-    const content = await sendGeminiRequest(prompt);
+    const content = await sendClaudeRequest(prompt);
     console.log("Validation response:", content);
 
     const parsedResult = cleanAndParseJSON(content);
@@ -775,71 +822,71 @@ export const generateDocument = async (
 
   if (language === "uz") {
     prompt = `Siz professional yuridik hujjat yozuvchi siz. Quyidagi ma'lumotlar asosida rasmiy "${docTypeName}" hujjatini o'zbek tilida yarating.
-
-Asosiy ma'lumotlar: "${inputText}"
-
-Hujjat talablari:
-1. Rasmiy yuridik format va til ishlatilishi
-2. Barcha kerakli bo'limlar mavjud bo'lishi (sarlavha, asosiy qism, imzo joyi)
-3. Professional va aniq ifodalar
-4. Sana va joy uchun bo'sh joylar qoldirish
-5. Hujjat yuridik jihatdan to'g'ri va amal qiladigan bo'lishi
-6. O'zbek tilida imloviy xatosiz yozilishi
-
-Hujjat strukturasi:
-- Sarlavha
-- Tomonlar (agar kerak bo'lsa)
-- Asosiy mazmun
-- Shartlar (agar kerak bo'lsa)  
-- Sanalar va imzo joylari
-
-Faqat tayyor hujjat matnini qaytaring, boshqa tushuntirish bermang.`;
+ 
+ Asosiy ma'lumotlar: "${inputText}"
+ 
+ Hujjat talablari:
+ 1. Rasmiy yuridik format va til ishlatilishi
+ 2. Barcha kerakli bo'limlar mavjud bo'lishi (sarlavha, asosiy qism, imzo joyi)
+ 3. Professional va aniq ifodalar
+ 4. Sana va joy uchun bo'sh joylar qoldirish
+ 5. Hujjat yuridik jihatdan to'g'ri va amal qiladigan bo'lishi
+ 6. O'zbek tilida imloviy xatosiz yozilishi
+ 
+ Hujjat strukturasi:
+ - Sarlavha
+ - Tomonlar (agar kerak bo'lsa)
+ - Asosiy mazmun
+ - Shartlar (agar kerak bo'lsa)  
+ - Sanalar va imzo joylari
+ 
+ Faqat tayyor hujjat matnini qaytaring, boshqa tushuntirish bermang.`;
   } else if (language === "kaa") {
     prompt = `Сиз профессионал юридикалық ҳужжат жазуўшысыз. Төмендеги мағлыўматлар асасында расмий "${docTypeName}" ҳужжатын қарақалпақ тилинде жаратың.
-
-Асосий мағлыўматлар: "${inputText}"
-
-Ҳужжат талаплары:
-1. Расмий юридикалық формат ҳәм тил қолланылыўы
-2. Барлық қәжетли бөлимлер мәвжуд болыўы (сарлавҳа, асосий бөлим, қол қойыў жәри)
-3. Профессионал ҳәм анық ифадалар
-4. Сана ҳәм жер ушын бос жерлер қалдырыў
-5. Ҳужжат юридикалық жағынан дурыс ҳәм әмел қылатуғын болыўы
-6. Қарақалпақ тилинде имловий хатасыз жазылыўы
-
-Ҳужжат структурасы:
-- Сарлавҳа
-- Тәреплер (егер қәжет болса)
-- Асосий мазмуны
-- Шартлар (егер қәжет болса)
-- Саналар ҳәм қол қойыў жерлери
-
-Тек тайяр ҳужжат мәтинин қайтарың, басқа түсиндириў бермең.`;
+ 
+ Асосий мағлыўматлар: "${inputText}"
+ 
+ Ҳужжат талаплары:
+ 1. Расмий юридикалық формат ҳәм тил қолланылыўы
+ 2. Барлық қәжетли бөлимлер мәвжуд болыўы (сарлавҳа, асосий бөлим, қол қойыў jäри)
+ 3. Профессионал ҳәм анық ифадалар
+ 4. Сана ҳәм жер ушын бос жерлер қалдырыў
+ 5. Ҳужжат юридикалық жағынан дурыс ҳәм әмел қылатуғын болыўы
+ 6. Қарақалпақ тилинде имловий хатасыз жазылыўы
+ 
+ Ҳужжат структурасы:
+ - Сарлавҳа
+ - Тәреплер (егер қәжет болса)
+ - Асосий мазмуны
+ - Шартлар (егер қәжет болса)
+ - Саналар ҳәм қол қойыў жерлери
+ 
+ Тек тайяр ҳужжат мәтинин қайтарың, басқа түсиндириў бермең.`;
   } else {
     prompt = `Вы профессиональный составитель юридических документов. На основе следующей информации создайте официальный документ "${docTypeName}" на русском языке.
-
-Основная информация: "${inputText}"
-
-Требования к документу:
-1. Использование официального юридического формата и языка
-2. Наличие всех необходимых разделов (заголовок, основная часть, место для подписи)
-3. Профессиональные и точные выражения
-4. Оставление пустых мест для даты и места
-5. Документ должен быть юридически корректным и действующим
-6. Написание на русском языке без орфографических ошибок
-
-Структура документа:
-- Заголовок
-- Стороны (если необходимо)
-- Основное содержание
-- Условия (если необходимо)
-- Даты и места для подписей
-
-Верните только готовый текст документа, без дополнительных объяснений.`;
+ 
+ Основная информация: "${inputText}"
+ 
+ Требования к документу:
+ 1. Использование официального юридического формата и языка
+ 2. Наличие всех необходимых разделов (заголовок, основная часть, место для подписи)
+ 3. Профессиональные и точные выражения
+ 4. Оставление пустых мест для даты и места
+ 5. Документ должен быть юридически корректным и действующим
+ 6. Написание на русском языке без орфографических ошибок
+ 
+ Структура документа:
+ - Заголовок
+ - Стороны (если необходимо)
+ - Основное содержание
+ - Условия (если необходимо)
+ - Даты и места для подписей
+ 
+ Верните только готовый текст документа, без дополнительных объяснений.`;
   }
 
   try {
-    const documentText = await sendGeminiRequest(prompt);
+    const documentText = await sendClaudeRequest(prompt);
 
     return {
       success: true,
@@ -867,9 +914,9 @@ export const getWordSuggestions = async (word, limit = 5) => {
   const prompt = `Provide ${limit} spelling suggestions for the Karakalpak word "${word}" written in ${
     isLatin ? "Latin" : "Cyrillic"
   } script.
-
-Return response ONLY in JSON format:
-{
+ 
+ Return response ONLY in JSON format:
+ {
   "suggestions": [
     {
       "word": "suggestion_1",
@@ -880,12 +927,12 @@ Return response ONLY in JSON format:
       "confidence": 90
     }
   ]
-}
-
-Return ONLY JSON response.`;
+ }
+ 
+ Return ONLY JSON response.`;
 
   try {
-    const content = await sendGeminiRequest(prompt);
+    const content = await sendClaudeRequest(prompt);
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     const jsonContent = jsonMatch ? jsonMatch[0] : content;
@@ -897,10 +944,10 @@ Return ONLY JSON response.`;
       data: parsedResult.suggestions || [],
     };
   } catch (error) {
-    console.error("RapidAPI Gemini API error:", error);
+    console.error("Anthropic Claude API error:", error);
     return {
       success: false,
-      error: error.message || "RapidAPI Gemini bilan bog'lanishda xato",
+      error: error.message || "Anthropic Claude bilan bog'lanishda xato",
     };
   }
 };
@@ -909,12 +956,12 @@ Return ONLY JSON response.`;
 export const testConnection = async () => {
   try {
     const testPrompt = `Test API connection. Return this exact JSON:
-{
+ {
   "status": "connected",
-  "message": "RapidAPI Gemini working"
-}`;
+  "message": "Anthropic Claude working"
+ }`;
 
-    const response = await sendGeminiRequest(testPrompt);
+    const response = await sendClaudeRequest(testPrompt);
     console.log("Test response:", response);
 
     // JSON parse qilishga harakat qilish
@@ -922,14 +969,14 @@ export const testConnection = async () => {
       const parsed = cleanAndParseJSON(response);
       return {
         success: true,
-        message: "RapidAPI Gemini connection successful",
+        message: "Anthropic Claude connection successful",
         response: response,
         parsed: parsed,
       };
     } catch (parseError) {
       return {
         success: true,
-        message: "RapidAPI connected but JSON parsing issue",
+        message: "Anthropic Claude connected but JSON parsing issue",
         response: response,
         parseError: parseError.message,
       };
