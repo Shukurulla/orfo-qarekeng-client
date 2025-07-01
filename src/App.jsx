@@ -142,45 +142,6 @@ function AppContent() {
 
 // Main App wrapper with Redux Provider
 function App() {
-  useEffect(() => {
-    const apiKey =
-      "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";
-
-    const run = async () => {
-      try {
-        const response = await axios.post(
-          "https://api.anthropic.com/v1/messages",
-          {
-            model: "claude-3.5-sonnet-20240620", // 3.7 o'rniga hozirgi to'g'ri nomi shu
-            max_tokens: 512,
-            messages: [
-              {
-                role: "user",
-                content: "Salom Claude! Bu so‘rov axios bilan jo‘natildi.",
-              },
-            ],
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": apiKey,
-              "anthropic-version": "2023-06-01",
-            },
-          }
-        );
-
-        console.log("Claude javobi:", response.data);
-      } catch (error) {
-        console.error(
-          "Xatolik:",
-          error.response ? error.response.data : error.message
-        );
-      }
-    };
-
-    run();
-  }, []);
-
   return (
     <Provider store={store}>
       <AppContent />
