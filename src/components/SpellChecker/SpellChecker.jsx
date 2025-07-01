@@ -1,4 +1,4 @@
-// src/components/SpellChecker/SpellChecker.jsx
+// src/components/SpellChecker/SpellChecker.jsx - UPDATED WITH LANGUAGE SELECTOR
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
@@ -16,6 +16,7 @@ import {
   Tag,
   Tooltip,
   Progress,
+  Select,
 } from "antd";
 import {
   CheckOutlined,
@@ -27,6 +28,8 @@ import {
   BulbOutlined,
   RobotOutlined,
   BugOutlined,
+  GlobalOutlined,
+  FontSizeOutlined,
 } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -36,6 +39,7 @@ import {
 } from "@/utils/OrfoAIService";
 
 const { Text, Title } = Typography;
+const { Option } = Select;
 
 const SpellChecker = () => {
   const textAreaRef = useRef(null);
@@ -52,9 +56,86 @@ const SpellChecker = () => {
   const [correctionInProgress, setCorrectionInProgress] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
 
+  // NEW: Language and script selection state
+  const [selectedLanguage, setSelectedLanguage] = useState("uz");
+  const [selectedScript, setSelectedScript] = useState("latin");
+
+  // Language options
+  const languageOptions = [
+    {
+      value: "uz",
+      label: "O'zbek tili",
+      flag: "🇺🇿",
+      description: "O'zbek tilida imlo tekshirish",
+    },
+    {
+      value: "kaa",
+      label: "Qoraqalpoq tili",
+      flag: "🏳️",
+      description: "Qoraqalpoq tilida imlo tekshirish",
+    },
+    {
+      value: "ru",
+      label: "Rus tili",
+      flag: "🇷🇺",
+      description: "Rus tilida imlo tekshirish",
+    },
+  ];
+
+  // Script options
+  const scriptOptions = [
+    {
+      value: "latin",
+      label: "Lotin alifbosi",
+      icon: "🅰️",
+      description: "Lotin harflari bilan",
+    },
+    {
+      value: "cyrillic",
+      label: "Kirill alifbosi",
+      icon: "Я",
+      description: "Kirill harflari bilan",
+    },
+  ];
+
+  // Get current language info
+  const getCurrentLanguageInfo = () => {
+    const lang = languageOptions.find((l) => l.value === selectedLanguage);
+    const script = scriptOptions.find((s) => s.value === selectedScript);
+    return { lang, script };
+  };
+
   // Matn o'zgarishi
   const handleTextChange = useCallback((e) => {
     setOriginalText(e.target.value);
+    setHasChecked(false);
+    setError(null);
+    setResults([]);
+    setMistakes([]);
+    setStatistics(null);
+  }, []);
+
+  // Language change handler
+  const handleLanguageChange = useCallback((value) => {
+    setSelectedLanguage(value);
+    setHasChecked(false);
+    setError(null);
+    setResults([]);
+    setMistakes([]);
+    setStatistics(null);
+
+    // Auto-detect appropriate script for language
+    if (value === "ru") {
+      setSelectedScript("cyrillic");
+    } else if (value === "uz") {
+      setSelectedScript("latin"); // O'zbek tili uchun lotin default
+    }
+    // Qoraqalpoq uchun user tanlashi mumkin
+  }, []);
+
+  // Script change handler
+  const handleScriptChange = useCallback((value) => {
+    setSelectedScript(value);
     setHasChecked(false);
     setError(null);
     setResults([]);
@@ -82,7 +163,11 @@ const SpellChecker = () => {
     setError(null);
 
     try {
-      const response = await checkSpelling(originalText);
+      const response = await checkSpelling(originalText, {
+        language: selectedLanguage,
+        script: selectedScript,
+      });
+
       console.log("Spell check response:", response); // Debug uchun
 
       if (response.success) {
@@ -109,39 +194,30 @@ const SpellChecker = () => {
 
         setMistakes(errorWords);
 
+        const { lang } = getCurrentLanguageInfo();
+
         if (errorWords.length === 0) {
-          message.success("Ajoyib! Matnda xato topilmadi");
+          message.success(`Ajoyib! ${lang.label}da xato topilmadi`);
         } else {
-          message.info(`${errorWords.length} ta imlo xatosi topildi`);
+          message.info(
+            `${lang.label}da ${errorWords.length} ta imlo xatosi topildi`
+          );
         }
       } else {
         console.error("Spell check failed:", response.error); // Debug uchun
         setError(response.error);
-        message.error(response.error);
+        message.error("Imlo tekshirishda xato yuz berdi");
       }
     } catch (err) {
       const errorMsg = err.message || "Tekshirishda xato yuz berdi";
       console.error("Spell check error:", err);
 
-      // OrfoAI API specific errors
-      if (err.message?.includes("API Error: 404")) {
-        setError(" endpoint topilmadi. URL yoki API kalitini tekshiring.");
-      } else if (err.message?.includes("API Error: 403")) {
-        setError(
-          " kaliti noto'g'ri yoki ruxsat yo'q. API kalitingizni tekshiring."
-        );
-      } else if (err.message?.includes("API Error: 429")) {
-        setError(" quotasini oshirib yubordingiz. Keyinroq urinib ko'ring.");
-      } else if (err.message?.includes("Network error")) {
-        setError("Internet aloqasi muammosi. Internetingizni tekshiring.");
-      } else {
-        setError(errorMsg);
-      }
+      setError(errorMsg);
       message.error(errorMsg);
     } finally {
       setIsChecking(false);
     }
-  }, [originalText]);
+  }, [originalText, selectedLanguage, selectedScript]);
 
   // Avtomatik to'g'irlash - OrfoAI bilan
   const handleAutoCorrect = useCallback(async () => {
@@ -155,7 +231,10 @@ const SpellChecker = () => {
     setError(null);
 
     try {
-      const response = await correctText(originalText);
+      const response = await correctText(originalText, {
+        language: selectedLanguage,
+        script: selectedScript,
+      });
 
       if (response.success) {
         const correctedText = response.data.corrected;
@@ -167,7 +246,8 @@ const SpellChecker = () => {
           setMistakes([]);
           setStatistics(null);
 
-          message.success("Matn muvaffaqiyatli to'g'irlandi!");
+          const { lang } = getCurrentLanguageInfo();
+          message.success(`${lang.label}da matn muvaffaqiyatli to'g'irlandi!`);
 
           // Auto-check after correction
           setTimeout(() => {
@@ -184,46 +264,39 @@ const SpellChecker = () => {
       const errorMsg = err.message || "To'g'irlashda xato yuz berdi";
       console.error("Auto correct error:", err);
 
-      // OrfoAI API specific errors
-      if (err.message?.includes("API Error: 404")) {
-        setError(" endpoint topilmadi. URL yoki API kalitini tekshiring.");
-      } else if (err.message?.includes("API Error: 403")) {
-        setError(
-          " kaliti noto'g'ri yoki ruxsat yo'q. API kalitingizni tekshiring."
-        );
-      } else if (err.message?.includes("API Error: 429")) {
-        setError(" quotasini oshirib yubordingiz. Keyinroq urinib ko'ring.");
-      } else if (err.message?.includes("Network error")) {
-        setError("Internet aloqasi muammosi. Internetingizni tekshiring.");
-      } else {
-        setError(errorMsg);
-      }
+      setError(errorMsg);
       message.error(errorMsg);
     } finally {
       setIsCorrecting(false);
       setCorrectionInProgress(false);
     }
-  }, [originalText]);
+  }, [originalText, selectedLanguage, selectedScript]);
 
   // To'g'irlashdan keyin avtomatik tekshirish
-  const handleAutoCheckAfterCorrection = useCallback(async (text) => {
-    try {
-      const response = await checkSpelling(text);
-      if (response.success) {
-        setResults(response.data.results || []);
-        setStatistics(response.data.statistics);
-        setHasChecked(true);
+  const handleAutoCheckAfterCorrection = useCallback(
+    async (text) => {
+      try {
+        const response = await checkSpelling(text, {
+          language: selectedLanguage,
+          script: selectedScript,
+        });
+        if (response.success) {
+          setResults(response.data.results || []);
+          setStatistics(response.data.statistics);
+          setHasChecked(true);
 
-        const errorCount =
-          response.data.results?.filter((r) => !r.isCorrect).length || 0;
-        if (errorCount === 0) {
-          message.success("To'g'irlash muvaffaqiyatli yakunlandi!");
+          const errorCount =
+            response.data.results?.filter((r) => !r.isCorrect).length || 0;
+          if (errorCount === 0) {
+            message.success("To'g'irlash muvaffaqiyatli yakunlandi!");
+          }
         }
+      } catch (error) {
+        console.error("Auto-check error:", error);
       }
-    } catch (error) {
-      console.error("Auto-check error:", error);
-    }
-  }, []);
+    },
+    [selectedLanguage, selectedScript]
+  );
 
   // Tozalash
   const handleClear = useCallback(() => {
@@ -341,44 +414,76 @@ const SpellChecker = () => {
     [mistakes, handleReplaceWord]
   );
 
+  const { lang, script } = getCurrentLanguageInfo();
+
   return (
     <div className="p-4 lg:p-6 h-full">
-      <Row gutter={[24, 24]} className="h-full">
-        {/* Main Editor Column */}
-        <Col xs={24} lg={hasChecked && mistakes.length > 0 ? 16 : 24}>
-          <Card
-            className="h-full shadow-lg"
-            title={
-              <div className="flex items-center justify-between">
-                <Space>
-                  <RobotOutlined className="text-blue-500" />
-                  <span>OrfoAI AI Imlo Tekshiruvchi</span>
-                  {statistics && (
-                    <Tag
-                      color={
-                        statistics.accuracy >= 90
-                          ? "green"
-                          : statistics.accuracy >= 70
-                          ? "orange"
-                          : "red"
-                      }
+      {/* Header Controls - NEW: Language and Script Selectors */}
+      <div className="mb-6">
+        <Card size="small" className="shadow-sm">
+          <Row gutter={[16, 16]} align="middle">
+            <Col xs={24} sm={8} md={6}>
+              <Space className="w-full">
+                <GlobalOutlined className="text-blue-500" />
+                <Select
+                  value={selectedLanguage}
+                  onChange={handleLanguageChange}
+                  className="w-full min-w-[180px]"
+                  placeholder="Tilni tanlang"
+                >
+                  {languageOptions.map((option) => (
+                    <Option
+                      key={option.value}
+                      value={option.value}
+                      title={option.description}
                     >
-                      {statistics.accuracy}% aniqlik
-                    </Tag>
-                  )}
-                </Space>
-              </div>
-            }
-            extra={
-              <Space wrap>
+                      <Space>
+                        <span>{option.flag}</span>
+                        {option.label}
+                      </Space>
+                    </Option>
+                  ))}
+                </Select>
+              </Space>
+            </Col>
+
+            <Col xs={24} sm={8} md={5}>
+              <Space className="w-full">
+                <FontSizeOutlined className="text-green-500" />
+                <Select
+                  value={selectedScript}
+                  onChange={handleScriptChange}
+                  className="w-full min-w-[160px]"
+                  placeholder="Alifboni tanlang"
+                  disabled={selectedLanguage === "ru"} // Rus tili uchun faqat kirill
+                >
+                  {scriptOptions.map((option) => (
+                    <Option
+                      key={option.value}
+                      value={option.value}
+                      title={option.description}
+                    >
+                      <Space>
+                        <span>{option.icon}</span>
+                        {option.label}
+                      </Space>
+                    </Option>
+                  ))}
+                </Select>
+              </Space>
+            </Col>
+
+            <Col xs={24} sm={8} md={13}>
+              <Space className="w-full justify-end" wrap>
                 <Button
                   type="primary"
                   icon={<CheckOutlined />}
                   onClick={handleCheck}
                   loading={isChecking}
                   disabled={!originalText.trim() || correctionInProgress}
+                  size="large"
                 >
-                  Tekshirish
+                  {lang?.label}da Tekshirish
                 </Button>
 
                 <Button
@@ -399,91 +504,113 @@ const SpellChecker = () => {
                 >
                   Tozalash
                 </Button>
-
-                {process.env.NODE_ENV === "development" && (
-                  <Button
-                    icon={<BugOutlined />}
-                    onClick={() => setShowDebug(!showDebug)}
-                    type="dashed"
-                  >
-                    Debug
-                  </Button>
-                )}
               </Space>
+            </Col>
+          </Row>
+        </Card>
+      </div>
+
+      {/* Debug Panel */}
+      {showDebug && process.env.NODE_ENV === "development" && (
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <h4 className="font-bold mb-2">🐛 OrfoAI Debug Info</h4>
+          <div className="text-sm space-y-1">
+            <div>Selected Language: {selectedLanguage}</div>
+            <div>Selected Script: {selectedScript}</div>
+            <div>Environment: {import.meta.env.MODE}</div>
+            <div>
+              <button
+                onClick={async () => {
+                  try {
+                    const result = await testConnection();
+                    console.log("API Test result:", result);
+                    if (result.success) {
+                      alert(
+                        `✅ Connection Success!\nResponse: ${result.response}`
+                      );
+                    } else {
+                      alert(`❌ Connection Failed: ${result.error}`);
+                    }
+                  } catch (error) {
+                    console.error("Debug error:", error);
+                    alert(`❌ Error: ${error.message}`);
+                  }
+                }}
+                className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
+              >
+                Test Connection
+              </button>
+            </div>
+            {hasChecked && results.length > 0 && (
+              <div className="mt-2 p-2 bg-gray-100 rounded">
+                <div className="font-bold">Found error words:</div>
+                <div className="text-xs">
+                  {results
+                    .filter((r) => !r.isCorrect)
+                    .map((r) => r.word)
+                    .join(", ")}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Error Alert */}
+      {error && (
+        <Alert
+          message="Tekshirishda xato"
+          description={error}
+          type="error"
+          showIcon
+          closable
+          className="mb-4"
+          onClose={() => setError(null)}
+        />
+      )}
+
+      {/* Correction Progress Alert */}
+      {correctionInProgress && (
+        <Alert
+          message={`${lang?.label}da AI to'g'irlash jarayoni`}
+          description={`OrfoAI ${lang?.label} tilida matnni tahlil qilib, xatolarni to'g'irlamoqda...`}
+          type="info"
+          showIcon
+          className="mb-4"
+        />
+      )}
+
+      {/* Main Content */}
+      <Row gutter={[24, 24]} className="h-full">
+        {/* Main Editor Column */}
+        <Col xs={24} lg={hasChecked && mistakes.length > 0 ? 16 : 24}>
+          <Card
+            className="h-full shadow-lg"
+            title={
+              <div className="flex items-center justify-between">
+                <Space>
+                  <RobotOutlined className="text-blue-500" />
+                  <span>OrfoAI AI Imlo Tekshiruvchi</span>
+                  <Tag color="blue">{lang?.label}</Tag>
+                  <Tag color="green">{script?.label}</Tag>
+                  {statistics && (
+                    <Tag
+                      color={
+                        statistics.accuracy >= 90
+                          ? "green"
+                          : statistics.accuracy >= 70
+                          ? "orange"
+                          : "red"
+                      }
+                    >
+                      {statistics.accuracy}% aniqlik
+                    </Tag>
+                  )}
+                </Space>
+              </div>
             }
           >
             <div className="relative">
-              {/* Debug Panel */}
-              {showDebug && process.env.NODE_ENV === "development" && (
-                <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h4 className="font-bold mb-2">🐛 OrfoAI Debug Info</h4>
-                  <div className="text-sm space-y-1">
-                    <div>
-                      Key: {import.meta.env.VITE__KEY ? "✅ Set" : "❌ Missing"}
-                    </div>
-                    <div>Environment: {import.meta.env.MODE}</div>
-                    <div>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const result = await testConnection();
-                            console.log("API Test result:", result);
-                            if (result.success) {
-                              alert(
-                                `✅  Connection Success!\nResponse: ${result.response}`
-                              );
-                            } else {
-                              alert(`❌ Connection Failed: ${result.error}`);
-                            }
-                          } catch (error) {
-                            console.error("Debug error:", error);
-                            alert(`❌ Error: ${error.message}`);
-                          }
-                        }}
-                        className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
-                      >
-                        Test Connection
-                      </button>
-                    </div>
-                    {hasChecked && results.length > 0 && (
-                      <div className="mt-2 p-2 bg-gray-100 rounded">
-                        <div className="font-bold">Found error words:</div>
-                        <div className="text-xs">
-                          {results
-                            .filter((r) => !r.isCorrect)
-                            .map((r) => r.word)
-                            .join(", ")}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Error Alert */}
-              {error && (
-                <Alert
-                  message="Tekshirishda xato"
-                  description={error}
-                  type="error"
-                  showIcon
-                  closable
-                  className="mb-4"
-                  onClose={() => setError(null)}
-                />
-              )}
-
-              {/* Correction Progress Alert */}
-              {correctionInProgress && (
-                <Alert
-                  message="AI to'g'irlash jarayoni"
-                  description=" OrfoAI matnni tahlil qilib, xatolarni to'g'irlamoqda..."
-                  type="info"
-                  showIcon
-                  className="mb-4"
-                />
-              )}
-
               {/* Loading Overlay */}
               {(isChecking || isCorrecting) && (
                 <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 z-10 flex items-center justify-center rounded-lg">
@@ -491,8 +618,8 @@ const SpellChecker = () => {
                     size="large"
                     tip={
                       isChecking
-                        ? " OrfoAI tekshirmoqda..."
-                        : " OrfoAI to'g'irlamoqda..."
+                        ? `OrfoAI ${lang?.label}da tekshirmoqda...`
+                        : `OrfoAI ${lang?.label}da to'g'irlamoqda...`
                     }
                   />
                 </div>
@@ -506,7 +633,7 @@ const SpellChecker = () => {
                     ref={textAreaRef}
                     value={originalText}
                     onChange={handleTextChange}
-                    placeholder="Bu yerda Qoraqalpoq tilida matn yozing... ( OrfoAI Pro yordami bilan)"
+                    placeholder={`Bu yerda ${lang?.label}da matn yozing... (${script?.label} bilan)`}
                     className="w-full min-h-[400px] p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
                     style={{
                       fontSize: "14px",
@@ -572,7 +699,8 @@ const SpellChecker = () => {
                     title={
                       <Space>
                         <BookOutlined />
-                        <span> OrfoAI Tahlili</span>
+                        <span>OrfoAI Tahlili</span>
+                        <Tag color="blue">{lang?.label}</Tag>
                       </Space>
                     }
                     size="small"
@@ -649,8 +777,9 @@ const SpellChecker = () => {
                     title={
                       <Space>
                         <ExclamationCircleOutlined className="text-red-500" />
-                        <span> OrfoAI Takliflari</span>
+                        <span>OrfoAI Takliflari</span>
                         <Tag color="red">{mistakes.length} ta xato</Tag>
+                        <Tag color="blue">{lang?.label}</Tag>
                       </Space>
                     }
                     size="small"
@@ -678,7 +807,7 @@ const SpellChecker = () => {
                                   className="text-xs flex items-center"
                                 >
                                   <BulbOutlined className="mr-1" />
-                                  Takliflari:
+                                  {lang?.label}da takliflar:
                                 </Text>
                                 <div className="space-y-1">
                                   {mistake.similarWords
@@ -738,7 +867,7 @@ const SpellChecker = () => {
                               Ajoyib!
                             </Text>
                             <div className="text-sm text-gray-500">
-                              OrfoAI xato topmadi
+                              {lang?.label}da OrfoAI xato topmadi
                             </div>
                           </div>
                         }
@@ -761,14 +890,28 @@ const SpellChecker = () => {
                   <div className="space-y-2">
                     <Title level={4}>OrfoAI Pro Imlo Tekshiruvchisi</Title>
                     <Text className="text-gray-500">
-                      Matn kiriting va AI yordamida tekshiring
+                      {lang?.label}da matn kiriting va AI yordamida tekshiring
                     </Text>
                     <div className="text-xs text-gray-400 space-y-1">
                       <div>• OrfoAI Pro quvvati</div>
-                      <div>• Kirill va Lotin alifbolari</div>
+                      <div>
+                        • {lang?.label} va {script?.label} qo'llab-quvvatlash
+                      </div>
                       <div>• Professional aniqlik</div>
                       <div>• Avtomatik to'g'irlash</div>
                       <div>• Xato so'zlarga click qiling</div>
+                    </div>
+
+                    {/* Language specific tips */}
+                    <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <Text className="text-sm text-blue-800 dark:text-blue-200">
+                        <strong>{lang?.label} uchun:</strong>{" "}
+                        {selectedLanguage === "uz"
+                          ? "O'zbek tilining so'z boyligi va grammatik qoidalariga mos tekshirish"
+                          : selectedLanguage === "kaa"
+                          ? "Qoraqalpoq tilining o'ziga xos xususiyatlari va leksikasiga mos tekshirish"
+                          : "Rus tilining imlo va grammatik qoidalariga mos tekshirish"}
+                      </Text>
                     </div>
                   </div>
                 }
