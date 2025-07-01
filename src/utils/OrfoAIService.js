@@ -3,8 +3,7 @@
 import axios from "axios";
 
 // Anthropic Claude API konfiguratsiyasi
-const ANTHROPIC_API_KEY =
-  "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";
+const ANTHROPIC_API_KEY = "api-key";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
 // Axios instance yaratish
