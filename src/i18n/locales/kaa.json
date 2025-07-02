@@ -1,0 +1,159 @@
+{
+  "common": {
+    "appName": "Qaraqalpaq tili imla tekseriwshisi",
+    "loading": "Júkleniwde...",
+    "save": "Saqlaw",
+    "cancel": "Biykarlaw",
+    "clear": "Tazalaw",
+    "apply": "Qollanıw",
+    "search": "İzlew",
+    "language": "Til",
+    "close": "Jabıw",
+    "copy": "Kóshiriw",
+    "download": "Júklep alıw",
+    "error": "Qátelik júz berdi",
+    "success": "Tabıslı tamamlandı",
+    "warning": "Eskertiw",
+    "info": "Maǵlıwmat",
+    "characters": "Belgi sanı",
+    "words": "Sózler",
+    "total": "Jámi"
+  },
+  "menu": {
+    "home": "Bas bet",
+    "spellCheck": "İmla tekseriwshi",
+    "transliteration": "Transliteratsiya",
+    "documentGenerator": "Tekst dúzetiw",
+    "about": "Qosımsha maǵlıwmat"
+  },
+  "logo": {
+    "title": "Qaraqalpaq tili imla tekseriwshisi"
+  },
+  "home": {
+    "welcome": "Qoraqalpoq tili ushın platforma",
+    "subtitle": "Professional dárejedegi imla tekseriwshi, transliteratsiya hám hújjet jaratıw qurılması",
+    "description": "Professional dárejedegi imla tekseriwshi, transliteratsiya hám hújjet jaratıw qurılması. Zamanagóy AI tehnologiyası menen Qoraqalpoq tilinde mútálsiz nátiyjeler.",
+    "featuresTitle": "Ne ushın bizdi tańlaw kerek?",
+    "feature1": "Keń sózler bazası",
+    "feature2": "Tez islew",
+    "feature3": "Joqarı anıqlıq",
+    "feature4": "Tekst dúzetiw",
+    "whyFeature1": "142,000 dan artıq sóz benen tolıq qamraw",
+    "whyFeature2": "Real waqıt rejiminde tez tahlil hám nátiyje",
+    "whyFeature3": "Zamanagóy AI tehnologiyası járdeminde professional nátiyjeler",
+    "whyFeature4": "Hár qanday tekstti jetilistiriw",
+    "spellCheckDescription": "Qoraqalpoq tilinde jazılǵan tekstlerdegi imlaiy qáteliklerin anıqlań hám túzetıń",
+    "transliterationDescription": "Tekstlerdi kirill hám latin álifbalarına qaraw ońay aynaldırıń",
+    "documentGeneratorDescription": "Hár qanday tekstti jetilendiriń hám professional kóriniske keltiriń",
+    "wordsBase": "Sózler bazası",
+    "biDirectional": "İki tárepleme",
+    "accuracy": "Anıqlıq",
+    "aiPowered": "AI járdeminde"
+  },
+  "spellChecker": {
+    "title": "İmla tekseriwshi",
+    "check": "Tekseriwdi baslaw",
+    "checking": "Tekserilmekte...",
+    "checkWithLanguage": "Tilde tekseriwdi baslaw",
+    "autoCorrect": "Avtomatik túzetiw",
+    "correcting": "Túzetilmekte...",
+    "detect": "Anıqlaw",
+    "placeholder": "Bul jerge tekst jazıń...",
+    "originalText": "Dáslepki tekst",
+    "detectedScript": "Anıqlangan alifbo",
+    "statistics": {
+      "title": "Statistika",
+      "accuracy": "Anıqlıq dárejesi",
+      "totalWords": "Barlıq sózler",
+      "correctWords": "Durıs sózler",
+      "incorrectWords": "Qáte sózler",
+      "readingTime": "Oqıw waqtı"
+    },
+    "suggestions": {
+      "title": "Usınıslar",
+      "applyAll": "Hámmesin qollaw",
+      "noSuggestions": "Usınıslar tabılmadı"
+    },
+    "errors": {
+      "empty": "Tekseriwdi baslaw ushın tekst kirgiziń",
+      "tooShort": "Tekst juda qısqa, keminde 5 hárip kirgiziń",
+      "connection": "Server menen baylanısta qátelik júz berdi",
+      "unknown": "Belgisiz qátelik júz berdi"
+    }
+  },
+  "transliterator": {
+    "title": "Transliteratsiya",
+    "convert": "Aylandırıw",
+    "converting": "Aylandırılmaqta...",
+    "swap": "Almastırıw",
+    "inputText": "Kirgiziw teksti",
+    "outputText": "Nátiyje",
+    "autoDetect": "Avtomatik anıqlaw",
+    "cyrilToLatin": "Kirillden Latinga",
+    "latinToCyril": "Latinnan Kirillge",
+    "placeholder": "Bul jerge Qoraqalpoq tilinde tekst jazıń (kirill yamasa latin alifboda)...",
+    "result": "Nátiyje",
+    "detectedAs": "Anıqlangan alifbo:",
+    "cyrillic": "Kirill",
+    "latin": "Latin",
+    "mixed": "Aralaspa"
+  },
+  "documentGenerator": {
+    "title": "Tekst dúzetiw",
+    "improve": "Tekst jetilistiriw",
+    "improving": "Jetilistirilmekte...",
+    "originalText": "Dáslepki tekst",
+    "improvedText": "Jetilistirilgen tekst",
+    "placeholder": "Bul jerge qálegen tekstti jazıń...",
+    "textStyle": "Tekst stili",
+    "improvementLevel": "Jetilistiriw dárejesi",
+    "styles": {
+      "professional": "Kásiplik",
+      "academic": "İlimiy",
+      "literary": "Ádebiy",
+      "formal": "Resmiy",
+      "friendly": "Doslarsha",
+      "humorous": "Házilik"
+    },
+    "levels": {
+      "min": "Minimal",
+      "light": "Jeńil",
+      "medium": "Ortalıq",
+      "strong": "Kúshli",
+      "max": "Maksimal"
+    }
+  },
+  "about": {
+    "title": "Qosımsha maǵlıwmat",
+    "description": "Qoraqalpoq tiliniń rawajlanıwına úles qosıw hám tildi saqlap qalıw maqsetinde jaratılǵan zamanagóy tehnologiyalar tiykarındaǵı kásiplik qural.",
+    "features": "Tiykarǵı imkaniyatlar",
+    "statistics": {
+      "wordsBase": "Sózler bazası",
+      "supportedAlphabets": "Qollap-quwwatlanatugın alifbalar",
+      "accuracyLevel": "Anıqlıq dárejesi",
+      "apiEndpoints": "API endpoints"
+    },
+    "technologies": "Qollanılǵan tehnologiyalar",
+    "mission": "Bizlerdiń maqsetimiz",
+    "missionText": "Qoraqalpoq tilin saqlap qalıw, rawajlandırıw hám zamanagóy tehnologiyalar menen baylanıstırıw arqalı keleshek áwladlar ushın til bayliǵın joǵaltpaw.",
+    "missionSubtext": "Bul loyiha arqalı Qoraqalpoq tilinde jazıwshı, oqıwshı hám úyreniwshilerdiń ishin ańsatlashtırıw hám til sapasin asırıwǵa úles qosamız.",
+    "contribute": "Loyihaǵa úles qosıw",
+    "contributeText": "Eger siz de Qoraqalpoq tiliniń rawajlanıwına úles qosmaqshı bolsańız, GitHub arqalı loyihaǵa qosılıwıńız múmkin.",
+    "contact": "Baylanıs",
+    "contactText": "Loyiha haqqında sorawlar, usınıslar yamasa qáteler haqqında maǵlıwmat beriw ushın bizler menen baylanısıń.",
+    "footerText": "Qoraqalpoq tiliniń rawajlanıwı ushın jaratılǵan.",
+    "dataBase": "Sózler bazası",
+    "dataBaseDescription": "Qoraqalpoq tiliniń bay lúǵatı hám grammatikalıq qáǵiydaları",
+    "spellCheckFeature": "142,000+ sózden ibarat keń lúǵat penen professional imla tekseriwi",
+    "transliterationFeature": "Kirill hám Latin álifbelerı arasında eki tárepleme avtomatik aynaldırıw"
+  },
+  "language": {
+    "kaa": "Qaraqalpaq tili",
+    "uz": "O'zbek tili",
+    "cyrillic": "Kirill alifbosi",
+    "latin": "Latin alifbosi"
+  },
+  "notFound": {
+    "message": "Keshiresiz, siz izlegen bet tabılmadı"
+  }
+}

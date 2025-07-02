@@ -4,7 +4,7 @@ import axios from "axios";
 
 // Backend API configuration
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:4343/api";
+  import.meta.env.VITE_API_BASE_URL || "https://orfo-qarekeng.vercel.app/api";
 
 // Axios instance for API calls
 const apiClient = axios.create({

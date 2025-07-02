@@ -1,4 +1,4 @@
-// src/App.jsx - SODDALASHTIRILGAN VA TO'G'RI VERSIYA
+// src/App.jsx - i18n bilan yangilangan
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Provider } from "react-redux";
@@ -9,6 +9,7 @@ import { ToastContainer } from "react-toastify";
 import { store } from "./store";
 import { useAppSelector, useAppDispatch } from "./hooks/redux";
 import { updateDeviceInfo } from "./store/slices/uiSlice";
+import { useTranslation } from "react-i18next";
 
 // Components
 import Layout from "./components/Layout/Layout";
@@ -28,7 +29,6 @@ import "./styles/globals.css";
 
 // Error Boundary
 import ErrorBoundary from "./components/ErrorBoundary/ErrorBoundary";
-import axios from "axios";
 
 // Theme configuration
 const createMuiTheme = (mode) =>
@@ -71,6 +71,7 @@ function AppContent() {
   const dispatch = useAppDispatch();
   const { theme } = useAppSelector((state) => state.ui);
   const isDark = theme === "dark";
+  const { i18n } = useTranslation();
 
   // Device resize handler
   useEffect(() => {
@@ -96,6 +97,14 @@ function AppContent() {
       document.documentElement.classList.remove("dark");
     }
   }, [isDark]);
+
+  // Language initialization
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem("userLanguage");
+    if (savedLanguage) {
+      i18n.changeLanguage(savedLanguage);
+    }
+  }, [i18n]);
 
   const muiTheme = createMuiTheme(isDark ? "dark" : "light");
 

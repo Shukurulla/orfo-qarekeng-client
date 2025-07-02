@@ -32,12 +32,15 @@ import {
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import { improveText, generateSong } from "@/utils/OrfoAIService";
+import { useTranslation } from "react-i18next";
 
 const { TextArea } = Input;
 const { Option } = Select;
 const { Title, Text, Paragraph } = Typography;
 
 const DocumentGenerator = () => {
+  const { t } = useTranslation();
+
   // State
   const [inputText, setInputText] = useState("");
   const [improvedText, setImprovedText] = useState("");
@@ -57,15 +60,15 @@ const DocumentGenerator = () => {
 
   // Til tanlash opsiyalari
   const languageOptions = [
-    { value: "uz", label: "O'zbek tili", flag: "🇺🇿" },
-    { value: "kaa", label: "Qoraqolpoq tili", flag: "🏳️" },
+    { value: "uz", label: t("language.uz"), flag: "🇺🇿" },
+    { value: "kaa", label: t("language.kaa"), flag: "🏳️" },
     { value: "ru", label: "Rus tili", flag: "🇷🇺" },
   ];
 
   // Alifbo tanlash opsiyalari
   const scriptOptions = [
-    { value: "latin", label: "Lotin alifbosi", icon: "🅰️" },
-    { value: "cyrillic", label: "Kirill alifbosi", icon: "Я" },
+    { value: "latin", label: t("language.latin"), icon: "🅰️" },
+    { value: "cyrillic", label: t("language.cyrillic"), icon: "Я" },
   ];
 
   // Alifbo ko'rsatilishini tekshirish
@@ -74,7 +77,11 @@ const DocumentGenerator = () => {
 
   // Kontent turi opsiyalari
   const contentTypeOptions = [
-    { value: "text", label: "Matn yaxshilash", icon: <FileTextOutlined /> },
+    {
+      value: "text",
+      label: t("documentGenerator.improve"),
+      icon: <FileTextOutlined />,
+    },
     { value: "song", label: "Qo'shiq yaratish", icon: <SoundOutlined /> },
   ];
 
@@ -105,37 +112,37 @@ const DocumentGenerator = () => {
   const styleTypes = [
     {
       value: "professional",
-      label: "Professional",
+      label: t("documentGenerator.styles.professional"),
       icon: "💼",
       desc: "Rasmiy va professional uslub",
     },
     {
       value: "academic",
-      label: "Ilmiy",
+      label: t("documentGenerator.styles.academic"),
       icon: "🎓",
       desc: "Ilmiy-akademik uslub",
     },
     {
       value: "literary",
-      label: "Adabiy",
+      label: t("documentGenerator.styles.literary"),
       icon: "📚",
       desc: "Go'zal va adabiy uslub",
     },
     {
       value: "formal",
-      label: "Rasmiy",
+      label: t("documentGenerator.styles.formal"),
       icon: "🏛️",
       desc: "Rasmiy hujjat uslubi",
     },
     {
       value: "friendly",
-      label: "Do'stona",
+      label: t("documentGenerator.styles.friendly"),
       icon: "😊",
       desc: "Samimiy va do'stona uslub",
     },
     {
       value: "humorous",
-      label: "Hazilli",
+      label: t("documentGenerator.styles.humorous"),
       icon: "😄",
       desc: "Hazil va kulgili uslub",
     },
@@ -144,11 +151,11 @@ const DocumentGenerator = () => {
   // Yaxshilash darajasi
   const getLevelDescription = (level) => {
     const levels = {
-      1: "Minimal - faqat eng kerakli o'zgarishlar",
-      2: "Engil - ozgina yaxshilanish",
-      3: "O'rtacha - muvozanatli yaxshilash",
-      4: "Kuchli - sezilarli o'zgarishlar",
-      5: "Maksimal - to'liq qayta ishlash",
+      1: t("documentGenerator.levels.min"),
+      2: t("documentGenerator.levels.light"),
+      3: t("documentGenerator.levels.medium"),
+      4: t("documentGenerator.levels.strong"),
+      5: t("documentGenerator.levels.max"),
     };
     return levels[level] || levels[3];
   };
@@ -197,7 +204,7 @@ const DocumentGenerator = () => {
   // Matnni yaxshilash
   const handleImproveText = useCallback(async () => {
     if (!inputText.trim()) {
-      message.warning("Iltimos, yaxshilash uchun matn kiriting");
+      message.warning(t("documentGenerator.placeholder"));
       return;
     }
 
@@ -212,7 +219,7 @@ const DocumentGenerator = () => {
     try {
       const response = await improveText(inputText, {
         language: selectedLanguage,
-        script: selectedScript, // Bu script parametri to'g'ri uzatiladi
+        script: selectedScript,
         style: styleType,
         level: improvementLevel,
       });
@@ -220,13 +227,13 @@ const DocumentGenerator = () => {
       if (response.success) {
         setImprovedText(response.data.improved);
         setShowResult(true);
-        message.success("Matn muvaffaqiyatli yaxshilandi!");
+        message.success(t("common.success"));
       } else {
         setError(response.error);
-        message.error("Matn yaxshilashda xato yuz berdi");
+        message.error(t("common.error"));
       }
     } catch (error) {
-      const errorMsg = error.message || "Matn yaxshilashda xato yuz berdi";
+      const errorMsg = error.message || t("common.error");
       setError(errorMsg);
       message.error(errorMsg);
     } finally {
@@ -238,6 +245,7 @@ const DocumentGenerator = () => {
     selectedScript,
     styleType,
     improvementLevel,
+    t,
   ]);
 
   // Qo'shiq yaratish
@@ -272,34 +280,44 @@ const DocumentGenerator = () => {
         const spellCheckedMsg = response.data.spellChecked
           ? " (Imloviy xatolar tekshirildi va to'g'irlandi)"
           : "";
-        message.success(`Qo'shiq muvaffaqiyatli yaratildi!${spellCheckedMsg}`);
+        message.success(`${t("common.success")}${spellCheckedMsg}`);
       } else {
         setError(response.error);
-        message.error("Qo'shiq yaratishda xato yuz berdi");
+        message.error(t("common.error"));
       }
     } catch (error) {
-      const errorMsg = error.message || "Qo'shiq yaratishda xato yuz berdi";
+      const errorMsg = error.message || t("common.error");
       setError(errorMsg);
       message.error(errorMsg);
     } finally {
       setIsImproving(false);
     }
-  }, [songTopic, songStyle, selectedLanguage, selectedScript, songConditions]);
+  }, [
+    songTopic,
+    songStyle,
+    selectedLanguage,
+    selectedScript,
+    songConditions,
+    t,
+  ]);
 
   // Nusxalash
-  const handleCopy = useCallback(async (text) => {
-    if (!text.trim()) {
-      message.warning("Nusxalash uchun matn yo'q");
-      return;
-    }
+  const handleCopy = useCallback(
+    async (text) => {
+      if (!text.trim()) {
+        message.warning("Nusxalash uchun matn yo'q");
+        return;
+      }
 
-    try {
-      await navigator.clipboard.writeText(text);
-      message.success("Matn nusxalandi");
-    } catch (error) {
-      message.error("Nusxalashda xato");
-    }
-  }, []);
+      try {
+        await navigator.clipboard.writeText(text);
+        message.success(t("common.copy"));
+      } catch (error) {
+        message.error(t("common.error"));
+      }
+    },
+    [t]
+  );
 
   // Tozalash
   const handleClear = useCallback(() => {
@@ -311,8 +329,8 @@ const DocumentGenerator = () => {
     setSongConditions("");
     setError(null);
     setShowResult(false);
-    message.info("Hammasi tozalandi");
-  }, []);
+    message.info(t("common.clear"));
+  }, [t]);
 
   // Yuklab olish
   const handleDownload = useCallback(() => {
@@ -332,10 +350,8 @@ const DocumentGenerator = () => {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
-    message.success(
-      `${contentType === "song" ? "Qo'shiq" : "Matn"} yuklab olindi`
-    );
-  }, [improvedText, generatedSong, contentType]);
+    message.success(t("common.download"));
+  }, [improvedText, generatedSong, contentType, t]);
 
   return (
     <div className="p-4 lg:p-6 h-full">
@@ -345,12 +361,12 @@ const DocumentGenerator = () => {
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={6} md={4}>
               <Space className="w-full">
-                <RobotOutlined className="text-blue-500" />
+                <FileTextOutlined className="text-blue-500" />
                 <Select
                   value={contentType}
                   onChange={handleContentTypeChange}
                   className="w-full min-w-[150px]"
-                  placeholder="Tur tanlang"
+                  placeholder={t("documentGenerator.title")}
                 >
                   {contentTypeOptions.map((option) => (
                     <Option key={option.value} value={option.value}>
@@ -369,7 +385,7 @@ const DocumentGenerator = () => {
                 value={selectedLanguage}
                 onChange={handleLanguageChange}
                 className="w-full"
-                placeholder="Tilni tanlang"
+                placeholder={t("common.language")}
               >
                 {languageOptions.map((option) => (
                   <Option key={option.value} value={option.value}>
@@ -388,7 +404,7 @@ const DocumentGenerator = () => {
                   value={selectedScript}
                   onChange={handleScriptChange}
                   className="w-full"
-                  placeholder="Alifbo"
+                  placeholder={t("language.latin")}
                 >
                   {scriptOptions.map((option) => (
                     <Option key={option.value} value={option.value}>
@@ -409,7 +425,7 @@ const DocumentGenerator = () => {
                     value={styleType}
                     onChange={handleStyleChange}
                     className="w-full"
-                    placeholder="Uslubni tanlang"
+                    placeholder={t("documentGenerator.textStyle")}
                   >
                     {styleTypes.map((style) => (
                       <Option key={style.value} value={style.value}>
@@ -425,7 +441,8 @@ const DocumentGenerator = () => {
                 <Col xs={24} sm={6} md={showScriptSelector ? 4 : 5}>
                   <div>
                     <Text className="text-xs text-gray-500">
-                      Yaxshilash darajasi: {improvementLevel}
+                      {t("documentGenerator.improvementLevel")}:{" "}
+                      {improvementLevel}
                     </Text>
                     <Slider
                       min={1}
@@ -433,9 +450,9 @@ const DocumentGenerator = () => {
                       value={improvementLevel}
                       onChange={setImprovementLevel}
                       marks={{
-                        1: "Min",
-                        3: "O'rta",
-                        5: "Max",
+                        1: t("documentGenerator.levels.min"),
+                        3: t("documentGenerator.levels.medium"),
+                        5: t("documentGenerator.levels.max"),
                       }}
                     />
                   </div>
@@ -475,7 +492,7 @@ const DocumentGenerator = () => {
                     !generatedSong.trim()
                   }
                 >
-                  Tozalash
+                  {t("common.clear")}
                 </Button>
               </Space>
             </Col>
@@ -483,49 +500,10 @@ const DocumentGenerator = () => {
         </Card>
       </div>
 
-      {/* Settings Info */}
-      <div className="mb-4">
-        <Card
-          size="small"
-          className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-        >
-          <Row gutter={16}>
-            <Col xs={24} md={6}>
-              <Text strong>Til:</Text>{" "}
-              {languageOptions.find((l) => l.value === selectedLanguage)?.label}
-            </Col>
-            {showScriptSelector && (
-              <Col xs={24} md={4}>
-                <Text strong>Alifbo:</Text>{" "}
-                {scriptOptions.find((s) => s.value === selectedScript)?.label}
-              </Col>
-            )}
-            <Col xs={24} md={showScriptSelector ? 6 : 8}>
-              <Text strong>Tur:</Text>{" "}
-              {contentTypeOptions.find((c) => c.value === contentType)?.label}
-            </Col>
-            {contentType === "text" && (
-              <Col xs={24} md={showScriptSelector ? 8 : 10}>
-                <Text strong>Uslub:</Text>{" "}
-                {styleTypes.find((s) => s.value === styleType)?.label} |{" "}
-                <Text strong>Daraja:</Text>{" "}
-                {getLevelDescription(improvementLevel)}
-              </Col>
-            )}
-            {contentType === "song" && (
-              <Col xs={24} md={showScriptSelector ? 8 : 10}>
-                <Text strong>Qo'shiq uslubi:</Text>{" "}
-                {songStyleOptions.find((s) => s.value === songStyle)?.label}
-              </Col>
-            )}
-          </Row>
-        </Card>
-      </div>
-
       {/* Error Alert */}
       {error && (
         <Alert
-          message="Xato yuz berdi"
+          message={t("common.error")}
           description={error}
           type="error"
           showIcon
@@ -544,7 +522,7 @@ const DocumentGenerator = () => {
               title={
                 <Space>
                   <FileTextOutlined />
-                  <span>Asl matn</span>
+                  <span>{t("documentGenerator.originalText")}</span>
                 </Space>
               }
               extra={
@@ -557,7 +535,7 @@ const DocumentGenerator = () => {
                     disabled={!inputText.trim()}
                     size="large"
                   >
-                    AI Yaxshilash
+                    {t("documentGenerator.improve")}
                   </Button>
                 </Space>
               }
@@ -569,14 +547,7 @@ const DocumentGenerator = () => {
                     <div className="text-center">
                       <Spin size="large" />
                       <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                        Gemini AI matnni yaxshilayapti va imloviy xatolarni
-                        tekshirayapti...
-                      </div>
-                      <div className="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                        ✓ Professional yaxshilash
-                        <br />
-                        ✓ Imloviy to'g'rilik
-                        <br />✓ Uslub mukammalligi
+                        {t("documentGenerator.improving")}
                       </div>
                     </div>
                   </div>
@@ -585,16 +556,7 @@ const DocumentGenerator = () => {
                 <TextArea
                   value={inputText}
                   onChange={handleInputChange}
-                  placeholder={`Bu yerga istalgan matnni yozing...
-
-Masalan:
-"Men bugün ishga bordim. Boshligim meni chaqirdi. U menga yangi loyiha haqida gapirdi. Bu loyiha juda muhim. Men uni qilishga tayyorman."
-
-AI bu matnni tanlangan uslub va darajaga qarab yaxshilaydi:
-• Ma'nosini o'zgartirmaydi
-• Yozuvni mukammallashtiradi  
-• Adabiy jihatdan to'ldiradi
-• Professional ko'rinish beradi`}
+                  placeholder={t("documentGenerator.placeholder")}
                   className="min-h-[400px] resize-none"
                   style={{
                     fontSize: "16px",
@@ -603,9 +565,11 @@ AI bu matnni tanlangan uslub va darajaga qarab yaxshilaydi:
                 />
 
                 <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
-                  <span>Belgilar: {inputText.length}</span>
                   <span>
-                    So'zlar:{" "}
+                    {t("common.characters")}: {inputText.length}
+                  </span>
+                  <span>
+                    {t("common.words")}:{" "}
                     {
                       inputText
                         .trim()
@@ -634,7 +598,7 @@ AI bu matnni tanlangan uslub va darajaga qarab yaxshilaydi:
                     disabled={!songTopic.trim()}
                     size="large"
                   >
-                    AI Qo'shiq yarat
+                    Qo'shiq yaratish
                   </Button>
                 </Space>
               }
@@ -646,18 +610,8 @@ AI bu matnni tanlangan uslub va darajaga qarab yaxshilaydi:
                     <div className="text-center">
                       <Spin size="large" />
                       <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                        {contentType === "song"
-                          ? "🎵 Gemini AI qo'shiq yaratayapti va imloviy xatolarni tekshirayapti..."
-                          : "Gemini AI matnni yaxshilayapti..."}
+                        {t("common.loading")}
                       </div>
-                      {contentType === "song" && (
-                        <div className="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                          ✓ 1-bosqich: Qo'shiq yaratish
-                          <br />
-                          ✓ 2-bosqich: Imlo tekshirish
-                          <br />✓ 3-bosqich: Mukammallashtirish
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -682,27 +636,13 @@ AI bu matnni tanlangan uslub va darajaga qarab yaxshilaydi:
                     <TextArea
                       value={songConditions}
                       onChange={(e) => setSongConditions(e.target.value)}
-                      placeholder="Qo'shiq haqida qo'shimcha talablar yoki shartlar kiriting...
-
-Masalan:
-- 4 kuplet bo'lsin
-- Har kupletda 4 qator bo'lsin
-- Qofiya ABAB bo'lsin
-- Yosh odamlarga mo'ljallangan bo'lsin"
+                      placeholder="Qo'shiq haqida qo'shimcha talablar yoki shartlar kiriting..."
                       className="min-h-[200px] resize-none"
                       style={{
                         fontSize: "14px",
                         lineHeight: "1.6",
                       }}
                     />
-                  </div>
-
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <Text className="text-sm text-blue-800 dark:text-blue-200">
-                      <strong>AI Qo'shiq yaratuvchi:</strong> Tanlangan uslub va
-                      tilga mos holda professional qo'shiq matnini yaratadi va
-                      mos musiqa tavsiya qiladi.
-                    </Text>
                   </div>
                 </div>
               </div>
@@ -725,14 +665,9 @@ Masalan:
                     <span>
                       {contentType === "song"
                         ? "Yaratilgan qo'shiq"
-                        : "Yaxshilangan matn"}
+                        : t("documentGenerator.improvedText")}
                     </span>
-                    <Tag color="green">Tayyor</Tag>
-                    {contentType === "song" && (
-                      <Tag color="blue" icon={<CheckOutlined />}>
-                        Imloviy tekshirilgan
-                      </Tag>
-                    )}
+                    <Tag color="green">{t("common.success")}</Tag>
                   </Space>
                 }
                 extra={
@@ -750,7 +685,7 @@ Masalan:
                           : improvedText.trim())
                       }
                     >
-                      Nusxalash
+                      {t("common.copy")}
                     </Button>
 
                     <Button
@@ -763,7 +698,7 @@ Masalan:
                           : improvedText.trim())
                       }
                     >
-                      Yuklab olish
+                      {t("common.download")}
                     </Button>
                   </Space>
                 }
@@ -794,14 +729,14 @@ Masalan:
 
                   <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
                     <span>
-                      Belgilar:{" "}
+                      {t("common.characters")}:{" "}
                       {
                         (contentType === "song" ? generatedSong : improvedText)
                           .length
                       }
                     </span>
                     <span>
-                      So'zlar:{" "}
+                      {t("common.words")}:{" "}
                       {
                         (contentType === "song" ? generatedSong : improvedText)
                           .trim()
@@ -813,70 +748,6 @@ Masalan:
                 </div>
               </Card>
             </motion.div>
-          </Col>
-        )}
-
-        {/* Instructions Panel */}
-        {!showResult && (
-          <Col xs={24} lg={8}>
-            <Card className="h-full">
-              <div className="text-center">
-                {contentType === "text" ? (
-                  <>
-                    <ThunderboltOutlined className="text-4xl text-blue-500 mb-4" />
-                    <Title level={4}>AI Matn Yaxshilagich</Title>
-                    <Text className="text-gray-500">
-                      Har qanday matnni mukammallashtiring
-                    </Text>
-
-                    <Divider />
-
-                    <div className="text-left">
-                      <Title level={5}>Qanday ishlaydi:</Title>
-                      <div className="space-y-2 text-sm">
-                        <div>• Matnni kiriting</div>
-                        <div>• Til va uslubni tanlang</div>
-                        <div>• Yaxshilash darajasini sozlang</div>
-                        <div>• AI tugmasini bosing</div>
-                        <div>• Professional qo'shiq matnini oling</div>
-                        <div>• Mos musiqa tavsiyasini ko'ring</div>
-                      </div>
-
-                      <Divider />
-
-                      <Title level={5}>Qo'shiq uslublari:</Title>
-                      <div className="space-y-1 text-sm">
-                        {songStyleOptions.map((style) => (
-                          <div
-                            key={style.value}
-                            className="flex items-start space-x-2"
-                          >
-                            <span>{style.icon}</span>
-                            <div>
-                              <div className="font-medium">{style.label}</div>
-                              <div className="text-xs text-gray-500">
-                                {style.desc}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <Divider />
-
-                      <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                        <Text className="text-sm text-green-800 dark:text-green-200">
-                          <strong>AI Qo'shiq yaratuvchi:</strong> Kamida 3
-                          kuplet qo'shiq yaratadi va mos musiqa tavsiya qiladi!
-                        </Text>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  ""
-                )}
-              </div>
-            </Card>
           </Col>
         )}
       </Row>

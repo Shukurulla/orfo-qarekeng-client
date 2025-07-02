@@ -12,27 +12,28 @@ import {
   DatabaseOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 const { Title, Paragraph, Text } = Typography;
 
 const About = () => {
+  const { t } = useTranslation();
+
   const features = [
     {
       icon: <CheckCircleOutlined className="text-blue-500 text-2xl" />,
-      title: "Imlo tekshiruv",
-      description:
-        "142,000+ so'zdan iborat keng lug'at bilan professional imlo tekshiruv",
+      title: t("menu.spellCheck"),
+      description: t("about.spellCheckFeature"),
     },
     {
       icon: <TranslationOutlined className="text-green-500 text-2xl" />,
-      title: "Transliteratsiya",
-      description:
-        "Kirill va Lotin alifbolari o'rtasida ikki tomonlama avtomatik aylantirish",
+      title: t("menu.transliteration"),
+      description: t("about.transliterationFeature"),
     },
     {
       icon: <DatabaseOutlined className="text-purple-500 text-2xl" />,
-      title: "Keng ma'lumotlar bazasi",
-      description: "Qoraqolpoq tilining boy lug'ati va grammatik qoidalari",
+      title: t("about.dataBase"),
+      description: t("about.dataBaseDescription"),
     },
   ];
 
@@ -48,14 +49,26 @@ const About = () => {
   ];
 
   const statistics = [
-    { label: "So'zlar bazasi", value: "142,000+", icon: <BookOutlined /> },
     {
-      label: "Qo'llab-quvvatlanadigan alifbolar",
+      label: t("about.statistics.wordsBase"),
+      value: "142,000+",
+      icon: <BookOutlined />,
+    },
+    {
+      label: t("about.statistics.supportedAlphabets"),
       value: "2",
       icon: <TranslationOutlined />,
     },
-    { label: "Aniqlik darajasi", value: "99%+", icon: <StarOutlined /> },
-    { label: "API endpoints", value: "12+", icon: <CodeOutlined /> },
+    {
+      label: t("about.statistics.accuracyLevel"),
+      value: "99%+",
+      icon: <StarOutlined />,
+    },
+    {
+      label: t("about.statistics.apiEndpoints"),
+      value: "12+",
+      icon: <CodeOutlined />,
+    },
   ];
 
   return (
@@ -74,13 +87,11 @@ const About = () => {
         </div>
 
         <Title level={1} className="!mb-4">
-          Qoraqolpoq Tili Imlo Tekshiruvchisi
+          {t("common.appName")}
         </Title>
 
         <Paragraph className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          Qoraqolpoq tilining rivojlanishiga hissa qo'shish va tilni saqlash
-          maqsadida yaratilgan zamonaviy texnologiyalar asosidagi professional
-          vosita.
+          {t("about.description")}
         </Paragraph>
 
         <Space className="mt-6">
@@ -94,7 +105,7 @@ const About = () => {
             GitHub
           </Button>
           <Button icon={<HeartOutlined />} size="large">
-            Loyihani qo'llab-quvvatlash
+            {t("about.contribute")}
           </Button>
         </Space>
       </motion.div>
@@ -129,7 +140,7 @@ const About = () => {
         className="mb-12"
       >
         <Title level={2} className="text-center !mb-8">
-          Asosiy imkoniyatlar
+          {t("about.features")}
         </Title>
 
         <Row gutter={[32, 32]}>
@@ -159,7 +170,7 @@ const About = () => {
         <Card>
           <Title level={3} className="!mb-6 flex items-center">
             <CodeOutlined className="mr-2" />
-            Ishlatilgan texnologiyalar
+            {t("about.technologies")}
           </Title>
 
           <Space wrap size="middle">
@@ -177,14 +188,12 @@ const About = () => {
               <Title level={5}>Frontend</Title>
               <Paragraph className="text-gray-600 dark:text-gray-300">
                 React 18, Redux Toolkit, Ant Design, Tailwind CSS, Framer Motion
-                bilan zamonaviy va tez ishlaydigan foydalanuvchi interfeysi.
               </Paragraph>
             </Col>
             <Col xs={24} md={12}>
               <Title level={5}>Backend</Title>
               <Paragraph className="text-gray-600 dark:text-gray-300">
-                Node.js, Express.js, MongoDB bilan ishonchli va tezkor server
-                tomoni va ma'lumotlar bazasi.
+                Node.js, Express.js, MongoDB
               </Paragraph>
             </Col>
           </Row>
@@ -202,17 +211,13 @@ const About = () => {
           <Row gutter={[32, 32]} align="middle">
             <Col xs={24} md={16}>
               <Title level={3} className="!mb-4">
-                Bizning maqsadimiz
+                {t("about.mission")}
               </Title>
               <Paragraph className="text-lg !mb-4">
-                Qoraqolpoq tilini saqlab qolish, rivojlantirish va zamonaviy
-                texnologiyalar bilan bog'lash orqali kelajak avlodlar uchun til
-                boyligini yo'qotmaslik.
+                {t("about.missionText")}
               </Paragraph>
               <Paragraph className="text-gray-600 dark:text-gray-300">
-                Bu loyiha orqali Qoraqolpoq tilida yozuvchi, o'quvchi va
-                o'rganuvchilarning ishini osonlashtirish va til sifatini
-                oshirishga hissa qo'shamiz.
+                {t("about.missionSubtext")}
               </Paragraph>
             </Col>
             <Col xs={24} md={8} className="text-center">
@@ -232,13 +237,9 @@ const About = () => {
           <Col xs={24} md={12}>
             <Card>
               <Title level={4} className="!mb-4">
-                Loyihaga hissa qo'shish
+                {t("about.contribute")}
               </Title>
-              <Paragraph>
-                Agar siz ham Qoraqolpoq tilining rivojlanishiga hissa
-                qo'shmoqchi bo'lsangiz, GitHub orqali loyihaga qo'shilishingiz
-                mumkin.
-              </Paragraph>
+              <Paragraph>{t("about.contributeText")}</Paragraph>
               <Button
                 type="primary"
                 icon={<GithubOutlined />}
@@ -253,12 +254,9 @@ const About = () => {
           <Col xs={24} md={12}>
             <Card>
               <Title level={4} className="!mb-4">
-                Aloqa
+                {t("about.contact")}
               </Title>
-              <Paragraph>
-                Loyiha haqida savollar, takliflar yoki xatolar haqida ma'lumot
-                berish uchun biz bilan bog'laning.
-              </Paragraph>
+              <Paragraph>{t("about.contactText")}</Paragraph>
               <Space direction="vertical">
                 <Text>📧 Email: your.email@example.com</Text>
                 <Text>💬 Telegram: @yourusername</Text>
@@ -271,8 +269,7 @@ const About = () => {
       {/* Footer */}
       <div className="text-center mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
         <Text type="secondary">
-          © 2024 Qoraqolpoq Tili Imlo Tekshiruvchisi. Qoraqolpoq tilining
-          rivojlanishi uchun yaratilgan.
+          © 2024 {t("common.appName")}. {t("about.footerText")}
         </Text>
       </div>
     </div>

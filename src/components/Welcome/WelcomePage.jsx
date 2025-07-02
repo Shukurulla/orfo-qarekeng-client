@@ -12,51 +12,62 @@ import {
 import { useAppDispatch } from "@/hooks/redux";
 import { setActiveTab } from "@/store/slices/uiSlice";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 const { Title, Paragraph, Text } = Typography;
 
 const WelcomePage = () => {
   const dispatch = useAppDispatch();
+  const { t } = useTranslation();
 
   const features = [
     {
       icon: <CheckCircleOutlined className="text-4xl text-blue-500" />,
-      title: "Imlo tekshiruv",
-      description:
-        "Qoraqalpoq tilida yozilgan matnlardagi imloviy xatolarni aniqlang va to'g'rilang",
+      title: t("menu.spellCheck"),
+      description: t("home.spellCheckDescription"),
       action: () => dispatch(setActiveTab("spellcheck")),
-      buttonText: "Tekshirishni boshlash",
+      buttonText: t("spellChecker.check"),
       color: "blue",
     },
     {
       icon: <TranslationOutlined className="text-4xl text-green-500" />,
-      title: "Transliteratsiya",
-      description:
-        "Matnlarni kirill va lotin alifbolari o'rtasida oson aylantiring",
+      title: t("menu.transliteration"),
+      description: t("home.transliterationDescription"),
       action: () => dispatch(setActiveTab("translate")),
-      buttonText: "Aylantirishni boshlash",
+      buttonText: t("transliterator.convert"),
       color: "green",
     },
     {
       icon: <FileTextOutlined className="text-4xl text-purple-500" />,
-      title: "Matn yaxshilash",
-      description:
-        "AI yordamida har qanday matnni mukammallashtiring va professional ko'rinishga keltiring",
+      title: t("menu.documentGenerator"),
+      description: t("home.documentGeneratorDescription"),
       action: () => dispatch(setActiveTab("document")),
-      buttonText: "Matn yaxshilashni boshlash",
+      buttonText: t("documentGenerator.improve"),
       color: "purple",
     },
   ];
 
   const statistics = [
-    { title: "142,000+", value: "So'zlar bazasi", icon: <BookOutlined /> },
     {
-      title: "Kirill ⇄ Lotin",
-      value: "Ikki tomonlama",
+      title: "142,000+",
+      value: t("home.wordsBase"),
+      icon: <BookOutlined />,
+    },
+    {
+      title: t("transliterator.cyrillic") + " ⇄ " + t("transliterator.latin"),
+      value: t("home.biDirectional"),
       icon: <ThunderboltOutlined />,
     },
-    { title: "99%+", value: "Aniqlik", icon: <StarOutlined /> },
-    { title: "AI Powered", value: "Gemini Pro", icon: <RocketOutlined /> },
+    {
+      title: "99%+",
+      value: t("home.accuracy"),
+      icon: <StarOutlined />,
+    },
+    {
+      title: "AI",
+      value: t("home.aiPowered"),
+      icon: <RocketOutlined />,
+    },
   ];
 
   return (
@@ -75,17 +86,15 @@ const WelcomePage = () => {
         </div>
 
         <Title level={1} className="!mb-4 !text-4xl lg:!text-5xl">
-          Qoraqalpoq tili uchun
+          {t("home.welcome")}
           <br />
           <span className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
-            AI Powered Platformasi
+            {t("home.subtitle")}
           </span>
         </Title>
 
         <Paragraph className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-          Professional darajadagi imlo tekshiruv, transliteratsiya va hujjat
-          yaratish vositasi. Gemini AI quvvati bilan Qoraqalpoq tilida mukammal
-          natijalar.
+          {t("home.description")}
         </Paragraph>
       </motion.div>
 
@@ -101,11 +110,8 @@ const WelcomePage = () => {
             <Col xs={12} sm={6} key={index}>
               <Card className="text-center h-full hover:shadow-lg transition-shadow duration-300">
                 <div className="text-3xl text-blue-500 mb-2">{stat.icon}</div>
-                <Statistic
-                  title={stat.value}
-                  value={stat.title}
-                  valueStyle={{ fontSize: "1.5rem", fontWeight: "bold" }}
-                />
+                <div className="font-bold text-xl mb-1">{stat.title}</div>
+                <div className="text-gray-500">{stat.value}</div>
               </Card>
             </Col>
           ))}
@@ -169,16 +175,16 @@ const WelcomePage = () => {
         <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-0">
           <div className="text-center py-8">
             <Title level={3} className="!mb-4">
-              Nima uchun bizni tanlash kerak?
+              {t("home.featuresTitle")}
             </Title>
 
             <Row gutter={[24, 24]} className="mt-8">
               <Col xs={24} md={6}>
                 <Space direction="vertical" size="small" className="w-full">
                   <CheckCircleOutlined className="text-2xl text-green-500" />
-                  <Text strong>Keng so'zlar bazasi</Text>
+                  <Text strong>{t("home.feature1")}</Text>
                   <Text className="text-gray-600 dark:text-gray-300">
-                    142,000 dan ortiq so'z bilan to'liq qamrov
+                    {t("home.whyFeature1")}
                   </Text>
                 </Space>
               </Col>
@@ -186,9 +192,9 @@ const WelcomePage = () => {
               <Col xs={24} md={6}>
                 <Space direction="vertical" size="small" className="w-full">
                   <ThunderboltOutlined className="text-2xl text-orange-500" />
-                  <Text strong>Tezkor ishlash</Text>
+                  <Text strong>{t("home.feature2")}</Text>
                   <Text className="text-gray-600 dark:text-gray-300">
-                    Real vaqt rejimida tezkor tahlil va natija
+                    {t("home.whyFeature2")}
                   </Text>
                 </Space>
               </Col>
@@ -196,9 +202,9 @@ const WelcomePage = () => {
               <Col xs={24} md={6}>
                 <Space direction="vertical" size="small" className="w-full">
                   <StarOutlined className="text-2xl text-yellow-500" />
-                  <Text strong>Yuqori aniqlik</Text>
+                  <Text strong>{t("home.feature3")}</Text>
                   <Text className="text-gray-600 dark:text-gray-300">
-                    Gemini AI quvvati bilan professional natijalar
+                    {t("home.whyFeature3")}
                   </Text>
                 </Space>
               </Col>
@@ -206,9 +212,9 @@ const WelcomePage = () => {
               <Col xs={24} md={6}>
                 <Space direction="vertical" size="small" className="w-full">
                   <FileTextOutlined className="text-2xl text-purple-500" />
-                  <Text strong>Matn yaxshilash</Text>
+                  <Text strong>{t("home.feature4")}</Text>
                   <Text className="text-gray-600 dark:text-gray-300">
-                    AI yordamida har qanday matnni mukammallashtirish
+                    {t("home.whyFeature4")}
                   </Text>
                 </Space>
               </Col>

@@ -8,13 +8,13 @@ import {
   Drawer,
   Switch,
   Tooltip,
+  Space,
 } from "antd";
 import {
   MenuOutlined,
   CloseOutlined,
   SunOutlined,
   MoonOutlined,
-  SettingOutlined,
   InfoCircleOutlined,
   HomeOutlined,
   TranslationOutlined,
@@ -30,6 +30,8 @@ import {
 } from "@/store/slices/uiSlice";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "../LanguageSwitcher/LanguageSwitcher";
 
 const { Header, Content, Sider } = AntLayout;
 
@@ -37,6 +39,7 @@ const Layout = ({ children }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   const { theme, activeTab, sidebarOpen, device } = useAppSelector(
     (state) => state.ui
@@ -67,7 +70,7 @@ const Layout = ({ children }) => {
     {
       key: "/",
       icon: <HomeOutlined />,
-      label: "Bosh sahifa",
+      label: t("menu.home"),
       onClick: () => {
         dispatch(setActiveTab("/"));
         navigate("/");
@@ -77,7 +80,7 @@ const Layout = ({ children }) => {
     {
       key: "spellcheck",
       icon: <CheckCircleOutlined />,
-      label: "Imlo tekshiruv",
+      label: t("menu.spellCheck"),
       onClick: () => {
         dispatch(setActiveTab("spellcheck"));
         navigate("/spellcheck");
@@ -87,7 +90,7 @@ const Layout = ({ children }) => {
     {
       key: "translate",
       icon: <TranslationOutlined />,
-      label: "Transliteratsiya",
+      label: t("menu.transliteration"),
       onClick: () => {
         dispatch(setActiveTab("translate"));
         navigate("/translate");
@@ -97,7 +100,7 @@ const Layout = ({ children }) => {
     {
       key: "document",
       icon: <FileTextOutlined />,
-      label: "Matn yaxshilash",
+      label: t("menu.documentGenerator"),
       onClick: () => {
         dispatch(setActiveTab("document"));
         navigate("/document");
@@ -110,7 +113,7 @@ const Layout = ({ children }) => {
     {
       key: "about",
       icon: <InfoCircleOutlined />,
-      label: "Loyiha haqida",
+      label: t("menu.about"),
       onClick: () => {
         navigate("/about");
         dispatch(setActiveTab("about"));
@@ -136,17 +139,17 @@ const Layout = ({ children }) => {
 
   // Get page title
   const getPageTitle = () => {
-    if (location.pathname === "/about") return "Loyiha haqida";
-    if (location.pathname === "/spellcheck") return "Imlo tekshiruv";
-    if (location.pathname === "/translate") return "Transliteratsiya";
-    if (location.pathname === "/document") return "Hujjat yaratish";
+    if (location.pathname === "/about") return t("menu.about");
+    if (location.pathname === "/spellcheck") return t("menu.spellCheck");
+    if (location.pathname === "/translate") return t("menu.transliteration");
+    if (location.pathname === "/document") return t("menu.documentGenerator");
     if (location.pathname === "/" && activeTab === "spellcheck")
-      return "Imlo tekshiruv";
+      return t("menu.spellCheck");
     if (location.pathname === "/" && activeTab === "translate")
-      return "Transliteratsiya";
+      return t("menu.transliteration");
     if (location.pathname === "/" && activeTab === "document")
-      return "Hujjat yaratish";
-    return "Bosh sahifa";
+      return t("menu.documentGenerator");
+    return t("menu.home");
   };
 
   // Sidebar content
@@ -162,10 +165,10 @@ const Layout = ({ children }) => {
             {!collapsed && (
               <div>
                 <h1 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Qoraqalpaq
+                  {t("common.appName")}
                 </h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Imlo tekshiruvchi
+                  {t("menu.spellCheck")}
                 </p>
               </div>
             )}
@@ -184,6 +187,13 @@ const Layout = ({ children }) => {
           theme={isDark ? "dark" : "light"}
         />
       </div>
+
+      {/* Language switcher */}
+      {/* {!collapsed && (
+        <div className="px-4 pb-2 border-t border-gray-200 dark:border-gray-700">
+          <LanguageSwitcher className="py-3" />
+        </div>
+      )} */}
 
       {/* Theme toggle */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
@@ -230,7 +240,7 @@ const Layout = ({ children }) => {
               <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded flex items-center justify-center">
                 <span className="text-white font-bold text-xs">қ</span>
               </div>
-              <span>Qoraqalpaq</span>
+              <span>{t("common.appName")}</span>
             </div>
           }
           placement="left"
@@ -249,6 +259,14 @@ const Layout = ({ children }) => {
           <div className="flex items-center justify-between h-full">
             <div className="flex items-center space-x-4">
               {/* Mobile menu toggle */}
+              {isMobile && (
+                <Button
+                  type="text"
+                  icon={<MenuOutlined />}
+                  onClick={() => dispatch(setSidebarOpen(true))}
+                  className="lg:hidden"
+                />
+              )}
 
               {/* Page title */}
               <div>
@@ -257,7 +275,10 @@ const Layout = ({ children }) => {
                 </h2>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
+              {/* Language switcher for desktop */}
+              {!isMobile && <LanguageSwitcher />}
+
               {/* Theme toggle for mobile */}
               {isMobile && (
                 <Tooltip title="Rang rejimini almashtirish">

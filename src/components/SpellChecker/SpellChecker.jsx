@@ -1,4 +1,4 @@
-// src/components/SpellChecker/SpellChecker.jsx - UPDATED WITH LANGUAGE SELECTOR
+// src/components/SpellChecker/SpellChecker.jsx - tarjimalar bilan yangilangan
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
@@ -26,8 +26,6 @@ import {
   ExclamationCircleOutlined,
   BookOutlined,
   BulbOutlined,
-  RobotOutlined,
-  BugOutlined,
   GlobalOutlined,
   FontSizeOutlined,
 } from "@ant-design/icons";
@@ -37,12 +35,14 @@ import {
   correctText,
   testConnection,
 } from "@/utils/OrfoAIService";
+import { useTranslation } from "react-i18next";
 
 const { Text, Title } = Typography;
 const { Option } = Select;
 
 const SpellChecker = () => {
   const textAreaRef = useRef(null);
+  const { t, i18n } = useTranslation();
 
   // State
   const [originalText, setOriginalText] = useState("");
@@ -56,7 +56,7 @@ const SpellChecker = () => {
   const [correctionInProgress, setCorrectionInProgress] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
 
-  // NEW: Language and script selection state
+  // Language and script selection state
   const [selectedLanguage, setSelectedLanguage] = useState("uz");
   const [selectedScript, setSelectedScript] = useState("latin");
 
@@ -64,13 +64,13 @@ const SpellChecker = () => {
   const languageOptions = [
     {
       value: "uz",
-      label: "O'zbek tili",
+      label: t("language.uz"),
       flag: "🇺🇿",
       description: "O'zbek tilida imlo tekshirish",
     },
     {
       value: "kaa",
-      label: "Qoraqalpoq tili",
+      label: t("language.kaa"),
       flag: "🏳️",
       description: "Qoraqalpoq tilida imlo tekshirish",
     },
@@ -86,13 +86,13 @@ const SpellChecker = () => {
   const scriptOptions = [
     {
       value: "latin",
-      label: "Lotin alifbosi",
+      label: t("language.latin"),
       icon: "🅰️",
       description: "Lotin harflari bilan",
     },
     {
       value: "cyrillic",
-      label: "Kirill alifbosi",
+      label: t("language.cyrillic"),
       icon: "Я",
       description: "Kirill harflari bilan",
     },
@@ -143,19 +143,15 @@ const SpellChecker = () => {
     setStatistics(null);
   }, []);
 
-  useEffect(() => {
-    console.log(mistakes);
-  }, [mistakes]);
-
-  // Imlo tekshirish - OrfoAI bilan
+  // Imlo tekshirish
   const handleCheck = useCallback(async () => {
     if (!originalText.trim()) {
-      message.warning("Tekshirish uchun matn kiriting");
+      message.warning(t("spellChecker.errors.empty"));
       return;
     }
 
     if (originalText.trim().length < 5) {
-      message.warning("Matn juda qisqa, kamida 5 ta harf kiriting");
+      message.warning(t("spellChecker.errors.tooShort"));
       return;
     }
 
@@ -168,13 +164,9 @@ const SpellChecker = () => {
         script: selectedScript,
       });
 
-      console.log("Spell check response:", response); // Debug uchun
-
       if (response.success) {
         const spellResults = response.data.results || [];
         const stats = response.data.statistics;
-
-        console.log("Spell results:", spellResults); // Debug uchun
 
         setResults(spellResults);
         setStatistics(stats);
@@ -197,32 +189,30 @@ const SpellChecker = () => {
         const { lang } = getCurrentLanguageInfo();
 
         if (errorWords.length === 0) {
-          message.success(`Ajoyib! ${lang.label}da xato topilmadi`);
+          message.success(`${lang.label}da xato topilmadi`);
         } else {
           message.info(
             `${lang.label}da ${errorWords.length} ta imlo xatosi topildi`
           );
         }
       } else {
-        console.error("Spell check failed:", response.error); // Debug uchun
         setError(response.error);
-        message.error("Imlo tekshirishda xato yuz berdi");
+        message.error(t("spellChecker.errors.unknown"));
       }
     } catch (err) {
-      const errorMsg = err.message || "Tekshirishda xato yuz berdi";
-      console.error("Spell check error:", err);
+      const errorMsg = err.message || t("spellChecker.errors.unknown");
 
       setError(errorMsg);
       message.error(errorMsg);
     } finally {
       setIsChecking(false);
     }
-  }, [originalText, selectedLanguage, selectedScript]);
+  }, [originalText, selectedLanguage, selectedScript, t]);
 
-  // Avtomatik to'g'irlash - OrfoAI bilan
+  // Avtomatik to'g'irlash
   const handleAutoCorrect = useCallback(async () => {
     if (!originalText.trim()) {
-      message.warning("To'g'irlash uchun matn kiriting");
+      message.warning(t("spellChecker.errors.empty"));
       return;
     }
 
@@ -247,30 +237,28 @@ const SpellChecker = () => {
           setStatistics(null);
 
           const { lang } = getCurrentLanguageInfo();
-          message.success(`${lang.label}da matn muvaffaqiyatli to'g'irlandi!`);
+          message.success(t("common.success"));
 
           // Auto-check after correction
           setTimeout(() => {
             handleAutoCheckAfterCorrection(correctedText);
           }, 1000);
         } else {
-          message.info("To'g'irlanadigan xato topilmadi");
+          message.info(t("spellChecker.suggestions.noSuggestions"));
         }
       } else {
         setError(response.error);
         message.error(response.error);
       }
     } catch (err) {
-      const errorMsg = err.message || "To'g'irlashda xato yuz berdi";
-      console.error("Auto correct error:", err);
-
+      const errorMsg = err.message || t("spellChecker.errors.unknown");
       setError(errorMsg);
       message.error(errorMsg);
     } finally {
       setIsCorrecting(false);
       setCorrectionInProgress(false);
     }
-  }, [originalText, selectedLanguage, selectedScript]);
+  }, [originalText, selectedLanguage, selectedScript, t]);
 
   // To'g'irlashdan keyin avtomatik tekshirish
   const handleAutoCheckAfterCorrection = useCallback(
@@ -288,14 +276,14 @@ const SpellChecker = () => {
           const errorCount =
             response.data.results?.filter((r) => !r.isCorrect).length || 0;
           if (errorCount === 0) {
-            message.success("To'g'irlash muvaffaqiyatli yakunlandi!");
+            message.success(t("common.success"));
           }
         }
       } catch (error) {
         console.error("Auto-check error:", error);
       }
     },
-    [selectedLanguage, selectedScript]
+    [selectedLanguage, selectedScript, t]
   );
 
   // Tozalash
@@ -310,8 +298,8 @@ const SpellChecker = () => {
     if (textAreaRef.current) {
       textAreaRef.current.focus();
     }
-    message.info("Hammasi tozalandi");
-  }, []);
+    message.info(t("common.clear"));
+  }, [t]);
 
   // So'zni almashtirish
   const handleReplaceWord = useCallback(
@@ -334,7 +322,7 @@ const SpellChecker = () => {
     [originalText]
   );
 
-  // YANGI: Tekshirilgan matnni render qilish
+  // Tekshirilgan matnni render qilish
   const renderCheckedText = useCallback(() => {
     if (!originalText || !mistakes.length) {
       return originalText;
@@ -383,7 +371,7 @@ const SpellChecker = () => {
     });
   }, [originalText, mistakes]);
 
-  // YANGI: Tekshirilgan matndagi so'zga click qilish
+  // Tekshirilgan matndagi so'zga click qilish
   const handleCheckedTextClick = useCallback(
     (event) => {
       const target = event.target;
@@ -407,29 +395,33 @@ const SpellChecker = () => {
             handleReplaceWord(mistake.mistakeWord, suggestions[0].word);
           }
         } else {
-          message.info(`"${mistake.mistakeWord}" so'zi uchun taklif topilmadi`);
+          message.info(t("spellChecker.suggestions.noSuggestions"));
         }
       }
     },
-    [mistakes, handleReplaceWord]
+    [mistakes, handleReplaceWord, t]
   );
 
   const { lang, script } = getCurrentLanguageInfo();
 
+  // Alifbo ko'rsatilishini tekshirish
+  const showScriptSelector =
+    selectedLanguage === "uz" || selectedLanguage === "kaa";
+
   return (
     <div className="p-4 lg:p-6 h-full">
-      {/* Header Controls - NEW: Language and Script Selectors */}
+      {/* Header Controls */}
       <div className="mb-6">
         <Card size="small" className="shadow-sm">
-          <Row gutter={[16, 16]} align="middle">
-            <Col xs={24} sm={8} md={6}>
-              <Space className="w-full">
+          <Row gutter={[16, 16]} className="justify-between" align="middle">
+            <Col xs={24} sm={6} md={4}>
+              <Space className="">
                 <GlobalOutlined className="text-blue-500" />
                 <Select
                   value={selectedLanguage}
                   onChange={handleLanguageChange}
-                  className="w-full min-w-[180px]"
-                  placeholder="Tilni tanlang"
+                  className="w-full min-w-[150px]"
+                  placeholder={t("common.language")}
                 >
                   {languageOptions.map((option) => (
                     <Option
@@ -447,14 +439,13 @@ const SpellChecker = () => {
               </Space>
             </Col>
 
-            <Col xs={24} sm={8} md={5}>
-              <Space className="w-full">
-                <FontSizeOutlined className="text-green-500" />
+            {showScriptSelector && (
+              <Col xs={24} sm={6} md={3}>
                 <Select
                   value={selectedScript}
                   onChange={handleScriptChange}
-                  className="w-full min-w-[160px]"
-                  placeholder="Alifboni tanlang"
+                  className="w-full"
+                  placeholder={t("language.latin")}
                   disabled={selectedLanguage === "ru"} // Rus tili uchun faqat kirill
                 >
                   {scriptOptions.map((option) => (
@@ -470,11 +461,11 @@ const SpellChecker = () => {
                     </Option>
                   ))}
                 </Select>
-              </Space>
-            </Col>
+              </Col>
+            )}
 
-            <Col xs={24} sm={8} md={13}>
-              <Space className="w-full justify-end" wrap>
+            <Col xs={24} sm={8} md={17}>
+              <div className="w-full flex items-center gap-2">
                 <Button
                   type="primary"
                   icon={<CheckOutlined />}
@@ -483,7 +474,7 @@ const SpellChecker = () => {
                   disabled={!originalText.trim() || correctionInProgress}
                   size="large"
                 >
-                  {lang?.label}da Tekshirish
+                  {t("spellChecker.checkWithLanguage")}
                 </Button>
 
                 <Button
@@ -494,7 +485,7 @@ const SpellChecker = () => {
                   type="default"
                   className="bg-green-500 text-white border-green-500 hover:bg-green-600"
                 >
-                  AI To'g'irlash
+                  {t("spellChecker.autoCorrect")}
                 </Button>
 
                 <Button
@@ -502,64 +493,18 @@ const SpellChecker = () => {
                   onClick={handleClear}
                   disabled={!originalText.trim()}
                 >
-                  Tozalash
+                  {t("common.clear")}
                 </Button>
-              </Space>
+              </div>
             </Col>
           </Row>
         </Card>
       </div>
 
-      {/* Debug Panel */}
-      {showDebug && process.env.NODE_ENV === "development" && (
-        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <h4 className="font-bold mb-2">🐛 OrfoAI Debug Info</h4>
-          <div className="text-sm space-y-1">
-            <div>Selected Language: {selectedLanguage}</div>
-            <div>Selected Script: {selectedScript}</div>
-            <div>Environment: {import.meta.env.MODE}</div>
-            <div>
-              <button
-                onClick={async () => {
-                  try {
-                    const result = await testConnection();
-                    console.log("API Test result:", result);
-                    if (result.success) {
-                      alert(
-                        `✅ Connection Success!\nResponse: ${result.response}`
-                      );
-                    } else {
-                      alert(`❌ Connection Failed: ${result.error}`);
-                    }
-                  } catch (error) {
-                    console.error("Debug error:", error);
-                    alert(`❌ Error: ${error.message}`);
-                  }
-                }}
-                className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
-              >
-                Test Connection
-              </button>
-            </div>
-            {hasChecked && results.length > 0 && (
-              <div className="mt-2 p-2 bg-gray-100 rounded">
-                <div className="font-bold">Found error words:</div>
-                <div className="text-xs">
-                  {results
-                    .filter((r) => !r.isCorrect)
-                    .map((r) => r.word)
-                    .join(", ")}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Error Alert */}
       {error && (
         <Alert
-          message="Tekshirishda xato"
+          message={t("common.error")}
           description={error}
           type="error"
           showIcon
@@ -572,8 +517,8 @@ const SpellChecker = () => {
       {/* Correction Progress Alert */}
       {correctionInProgress && (
         <Alert
-          message={`${lang?.label}da AI to'g'irlash jarayoni`}
-          description={`OrfoAI ${lang?.label} tilida matnni tahlil qilib, xatolarni to'g'irlamoqda...`}
+          message={`${lang?.label} - ${t("spellChecker.correcting")}`}
+          description={t("spellChecker.correcting")}
           type="info"
           showIcon
           className="mb-4"
@@ -589,8 +534,8 @@ const SpellChecker = () => {
             title={
               <div className="flex items-center justify-between">
                 <Space>
-                  <RobotOutlined className="text-blue-500" />
-                  <span>OrfoAI AI Imlo Tekshiruvchi</span>
+                  <FileTextOutlined className="text-blue-500" />
+                  <span>{t("spellChecker.title")}</span>
                   <Tag color="blue">{lang?.label}</Tag>
                   <Tag color="green">{script?.label}</Tag>
                   {statistics && (
@@ -603,7 +548,8 @@ const SpellChecker = () => {
                           : "red"
                       }
                     >
-                      {statistics.accuracy}% aniqlik
+                      {statistics.accuracy}%{" "}
+                      {t("spellChecker.statistics.accuracy")}
                     </Tag>
                   )}
                 </Space>
@@ -618,8 +564,8 @@ const SpellChecker = () => {
                     size="large"
                     tip={
                       isChecking
-                        ? `OrfoAI ${lang?.label}da tekshirmoqda...`
-                        : `OrfoAI ${lang?.label}da to'g'irlamoqda...`
+                        ? t("spellChecker.checking")
+                        : t("spellChecker.correcting")
                     }
                   />
                 </div>
@@ -633,7 +579,7 @@ const SpellChecker = () => {
                     ref={textAreaRef}
                     value={originalText}
                     onChange={handleTextChange}
-                    placeholder={`Bu yerda ${lang?.label}da matn yozing... (${script?.label} bilan)`}
+                    placeholder={t("spellChecker.placeholder")}
                     className="w-full min-h-[400px] p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
                     style={{
                       fontSize: "14px",
@@ -664,7 +610,8 @@ const SpellChecker = () => {
               {/* Text Statistics */}
               <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
                 <span>
-                  Belgilar: {originalText.length} | So'zlar:{" "}
+                  {t("common.characters")}: {originalText.length} |{" "}
+                  {t("common.words")}:{" "}
                   {
                     originalText
                       .trim()
@@ -674,7 +621,9 @@ const SpellChecker = () => {
                 </span>
                 {statistics && (
                   <span>
-                    To'g'ri: {statistics.correctWords} | Xato:{" "}
+                    {t("spellChecker.statistics.correctWords")}:{" "}
+                    {statistics.correctWords} |{" "}
+                    {t("spellChecker.statistics.incorrectWords")}:{" "}
                     {statistics.incorrectWords}
                   </span>
                 )}
@@ -699,7 +648,7 @@ const SpellChecker = () => {
                     title={
                       <Space>
                         <BookOutlined />
-                        <span>OrfoAI Tahlili</span>
+                        <span>{t("spellChecker.statistics.title")}</span>
                         <Tag color="blue">{lang?.label}</Tag>
                       </Space>
                     }
@@ -709,7 +658,9 @@ const SpellChecker = () => {
                     <div className="space-y-3">
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <Text strong>Aniqlik darajasi</Text>
+                          <Text strong>
+                            {t("spellChecker.statistics.accuracy")}
+                          </Text>
                           <Text
                             strong
                             className={
@@ -739,31 +690,39 @@ const SpellChecker = () => {
 
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <Text type="secondary">Jami so'zlar</Text>
+                          <Text type="secondary">
+                            {t("spellChecker.statistics.totalWords")}
+                          </Text>
                           <div className="font-semibold">
                             {statistics.totalWords}
                           </div>
                         </div>
                         <div>
-                          <Text type="secondary">To'g'ri</Text>
+                          <Text type="secondary">
+                            {t("spellChecker.statistics.correctWords")}
+                          </Text>
                           <div className="font-semibold text-green-500">
                             {statistics.correctWords}
                           </div>
                         </div>
                         <div>
-                          <Text type="secondary">Xato</Text>
+                          <Text type="secondary">
+                            {t("spellChecker.statistics.incorrectWords")}
+                          </Text>
                           <div className="font-semibold text-red-500">
                             {statistics.incorrectWords}
                           </div>
                         </div>
                         <div>
-                          <Text type="secondary">Alifbo</Text>
+                          <Text type="secondary">
+                            {t("spellChecker.detectedScript")}
+                          </Text>
                           <div className="font-semibold">
                             {statistics.scriptType === "cyrillic"
-                              ? "Kirill"
+                              ? t("transliterator.cyrillic")
                               : statistics.scriptType === "latin"
-                              ? "Lotin"
-                              : "Aralash"}
+                              ? t("transliterator.latin")
+                              : t("transliterator.mixed")}
                           </div>
                         </div>
                       </div>
@@ -777,7 +736,7 @@ const SpellChecker = () => {
                     title={
                       <Space>
                         <ExclamationCircleOutlined className="text-red-500" />
-                        <span>OrfoAI Takliflari</span>
+                        <span>{t("spellChecker.suggestions.title")}</span>
                         <Tag color="red">{mistakes.length} ta xato</Tag>
                         <Tag color="blue">{lang?.label}</Tag>
                       </Space>
@@ -796,7 +755,8 @@ const SpellChecker = () => {
                                 "{mistake.mistakeWord}"
                               </Text>
                               <Tag size="small" color="blue">
-                                {mistake.similarWords.length} taklif
+                                {mistake.similarWords.length}{" "}
+                                {t("spellChecker.suggestions.title")}
                               </Tag>
                             </div>
 
@@ -807,7 +767,8 @@ const SpellChecker = () => {
                                   className="text-xs flex items-center"
                                 >
                                   <BulbOutlined className="mr-1" />
-                                  {lang?.label}da takliflar:
+                                  {lang?.label}da{" "}
+                                  {t("spellChecker.suggestions.title")}:
                                 </Text>
                                 <div className="space-y-1">
                                   {mistake.similarWords
@@ -844,7 +805,7 @@ const SpellChecker = () => {
                                             )
                                           }
                                         >
-                                          Qo'llash
+                                          {t("common.apply")}
                                         </Button>
                                       </div>
                                     ))}
@@ -864,10 +825,10 @@ const SpellChecker = () => {
                         description={
                           <div>
                             <Text strong className="text-green-500">
-                              Ajoyib!
+                              {t("common.success")}!
                             </Text>
                             <div className="text-sm text-gray-500">
-                              {lang?.label}da OrfoAI xato topmadi
+                              {lang?.label}da xato topilmadi
                             </div>
                           </div>
                         }
@@ -888,24 +849,23 @@ const SpellChecker = () => {
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
                   <div className="space-y-2">
-                    <Title level={4}>OrfoAI Pro Imlo Tekshiruvchisi</Title>
+                    <Title level={4}>{t("spellChecker.title")}</Title>
                     <Text className="text-gray-500">
-                      {lang?.label}da matn kiriting va AI yordamida tekshiring
+                      {t("spellChecker.placeholder")}
                     </Text>
                     <div className="text-xs text-gray-400 space-y-1">
-                      <div>• OrfoAI Pro quvvati</div>
+                      <div>• {t("spellChecker.statistics.accuracy")}</div>
                       <div>
-                        • {lang?.label} va {script?.label} qo'llab-quvvatlash
+                        • {lang?.label} va {script?.label}
                       </div>
-                      <div>• Professional aniqlik</div>
-                      <div>• Avtomatik to'g'irlash</div>
-                      <div>• Xato so'zlarga click qiling</div>
+                      <div>• {t("spellChecker.title")}</div>
+                      <div>• {t("spellChecker.autoCorrect")}</div>
                     </div>
 
                     {/* Language specific tips */}
                     <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                       <Text className="text-sm text-blue-800 dark:text-blue-200">
-                        <strong>{lang?.label} uchun:</strong>{" "}
+                        <strong>{lang?.label}:</strong>{" "}
                         {selectedLanguage === "uz"
                           ? "O'zbek tilining so'z boyligi va grammatik qoidalariga mos tekshirish"
                           : selectedLanguage === "kaa"

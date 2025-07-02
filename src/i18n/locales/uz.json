@@ -1,0 +1,159 @@
+{
+  "common": {
+    "appName": "Qoraqalpoq tili imlo tekshiruvchisi",
+    "loading": "Yuklanmoqda...",
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "clear": "Tozalash",
+    "apply": "Qo'llash",
+    "search": "Qidirish",
+    "language": "Til",
+    "close": "Yopish",
+    "copy": "Nusxalash",
+    "download": "Yuklab olish",
+    "error": "Xato yuz berdi",
+    "success": "Muvaffaqiyatli bajarildi",
+    "warning": "Ogohlantirish",
+    "info": "Ma'lumot",
+    "characters": "Belgilar soni",
+    "words": "So'zlar",
+    "total": "Jami"
+  },
+  "menu": {
+    "home": "Bosh sahifa",
+    "spellCheck": "Imlo tekshirish",
+    "transliteration": "Transliteratsiya",
+    "documentGenerator": "Matn yaxshilash",
+    "about": "Loyiha haqida"
+  },
+  "logo": {
+    "title": "Qoraqalpoq tili imlo tekshiruvchisi"
+  },
+  "home": {
+    "welcome": "Qoraqalpoq tili uchun platforma",
+    "subtitle": "Professional darajadagi imlo tekshiruv, transliteratsiya va hujjat yaratish vositasi",
+    "description": "Professional darajadagi imlo tekshiruv, transliteratsiya va hujjat yaratish vositasi. Zamonaviy AI texnologiyasi bilan Qoraqalpoq tilida mukammal natijalar.",
+    "featuresTitle": "Nima uchun bizni tanlash kerak?",
+    "feature1": "Keng so'zlar bazasi",
+    "feature2": "Tezkor ishlash",
+    "feature3": "Yuqori aniqlik",
+    "feature4": "Matn yaxshilash",
+    "whyFeature1": "142,000 dan ortiq so'z bilan to'liq qamrov",
+    "whyFeature2": "Real vaqt rejimida tezkor tahlil va natija",
+    "whyFeature3": "Zamonaviy AI texnologiyasi yordamida professional natijalar",
+    "whyFeature4": "Har qanday matnni mukammallashtirish",
+    "spellCheckDescription": "Qoraqalpoq tilida yozilgan matnlardagi imloviy xatolarni aniqlang va to'g'rilang",
+    "transliterationDescription": "Matnlarni kirill va lotin alifbolari o'rtasida oson aylantiring",
+    "documentGeneratorDescription": "AI yordamida har qanday matnni mukammallashtiring va professional ko'rinishga keltiring",
+    "wordsBase": "So'zlar bazasi",
+    "biDirectional": "Ikki tomonlama",
+    "accuracy": "Aniqlik",
+    "aiPowered": "AI yordamida"
+  },
+  "spellChecker": {
+    "title": "Imlo tekshirish",
+    "check": "Tekshirishni boshlash",
+    "checking": "Tekshirilmoqda...",
+    "checkWithLanguage": "Tilda tekshirishni boshlash",
+    "autoCorrect": "Avtomatik to'g'irlash",
+    "correcting": "To'g'irlanmoqda...",
+    "detect": "Aniqlash",
+    "placeholder": "Bu yerga matn yozing...",
+    "originalText": "Asl matn",
+    "detectedScript": "Aniqlangan alifbo",
+    "statistics": {
+      "title": "Statistika",
+      "accuracy": "Aniqlik darajasi",
+      "totalWords": "Jami so'zlar",
+      "correctWords": "To'g'ri so'zlar",
+      "incorrectWords": "Xato so'zlar",
+      "readingTime": "O'qish vaqti"
+    },
+    "suggestions": {
+      "title": "Takliflar",
+      "applyAll": "Hammasini qo'llash",
+      "noSuggestions": "Takliflar topilmadi"
+    },
+    "errors": {
+      "empty": "Tekshirish uchun matn kiriting",
+      "tooShort": "Matn juda qisqa, kamida 5 ta harf kiriting",
+      "connection": "Server bilan bog'lanishda xato yuz berdi",
+      "unknown": "Noma'lum xato yuz berdi"
+    }
+  },
+  "transliterator": {
+    "title": "Transliteratsiya",
+    "convert": "Aylantirish",
+    "converting": "Aylantirilmoqda...",
+    "swap": "Almashtirish",
+    "inputText": "Kirish matni",
+    "outputText": "Natija",
+    "autoDetect": "Avtomatik aniqlash",
+    "cyrilToLatin": "Kirilldan Lotinga",
+    "latinToCyril": "Lotindan Kirillga",
+    "placeholder": "Bu yerga Qoraqalpoq tilida matn yozing (kirill yoki lotin alifbosida)...",
+    "result": "Natija",
+    "detectedAs": "Aniqlangan alifbo:",
+    "cyrillic": "Kirill",
+    "latin": "Lotin",
+    "mixed": "Aralash"
+  },
+  "documentGenerator": {
+    "title": "Matn yaxshilash",
+    "improve": "Matnni yaxshilash",
+    "improving": "Yaxshilanmoqda...",
+    "originalText": "Asl matn",
+    "improvedText": "Yaxshilangan matn",
+    "placeholder": "Bu yerga istalgan matnni yozing...",
+    "textStyle": "Matn uslubi",
+    "improvementLevel": "Yaxshilash darajasi",
+    "styles": {
+      "professional": "Professional",
+      "academic": "Ilmiy",
+      "literary": "Adabiy",
+      "formal": "Rasmiy",
+      "friendly": "Do'stona",
+      "humorous": "Hazilli"
+    },
+    "levels": {
+      "min": "Minimal",
+      "light": "Yengil",
+      "medium": "O'rtacha",
+      "strong": "Kuchli",
+      "max": "Maksimal"
+    }
+  },
+  "about": {
+    "title": "Loyiha haqida",
+    "description": "Qoraqalpoq tilining rivojlanishiga hissa qo'shish va tilni saqlash maqsadida yaratilgan zamonaviy texnologiyalar asosidagi professional vosita.",
+    "features": "Asosiy imkoniyatlar",
+    "statistics": {
+      "wordsBase": "So'zlar bazasi",
+      "supportedAlphabets": "Qo'llab-quvvatlanadigan alifbolar",
+      "accuracyLevel": "Aniqlik darajasi",
+      "apiEndpoints": "API endpoints"
+    },
+    "technologies": "Qo'llanilgan texnologiyalar",
+    "mission": "Bizning maqsadimiz",
+    "missionText": "Qoraqalpoq tilini saqlab qolish, rivojlantirish va zamonaviy texnologiyalar bilan bog'lash orqali kelajak avlodlar uchun til boyligini yo'qotmaslik.",
+    "missionSubtext": "Bu loyiha orqali Qoraqalpoq tilida yozuvchi, o'quvchi va o'rganuvchilarning ishini osonlashtirish va til sifatini oshirishga hissa qo'shamiz.",
+    "contribute": "Loyihaga hissa qo'shish",
+    "contributeText": "Agar siz ham Qoraqalpoq tilining rivojlanishiga hissa qo'shmoqchi bo'lsangiz, GitHub orqali loyihaga qo'shilishingiz mumkin.",
+    "contact": "Aloqa",
+    "contactText": "Loyiha haqida savollar, takliflar yoki xatolar haqida ma'lumot berish uchun biz bilan bog'laning.",
+    "footerText": "Qoraqalpoq tilining rivojlanishi uchun yaratilgan.",
+    "dataBase": "So'zlar bazasi",
+    "dataBaseDescription": "Qoraqalpoq tilining boy lug'ati va grammatik qoidalari",
+    "spellCheckFeature": "142,000+ so'zdan iborat keng lug'at bilan professional imlo tekshiruv",
+    "transliterationFeature": "Kirill va Lotin alifbolari o'rtasida ikki tomonlama avtomatik aylantirish"
+  },
+  "language": {
+    "kaa": "Qoraqalpoq tili",
+    "uz": "O'zbek tili",
+    "cyrillic": "Kirill alifbosi",
+    "latin": "Lotin alifbosi"
+  },
+  "notFound": {
+    "message": "Kechirasiz, siz izlagan sahifa topilmadi"
+  }
+}

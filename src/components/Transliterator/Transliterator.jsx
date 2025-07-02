@@ -21,7 +21,6 @@ import {
   ClearOutlined,
   TranslationOutlined,
   ScanOutlined,
-  RobotOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import {
@@ -29,11 +28,14 @@ import {
   autoTransliterate,
   detectScript,
 } from "@/utils/OrfoAIService";
+import { useTranslation } from "react-i18next";
 
 const { TextArea } = Input;
 const { Option } = Select;
 
 const Transliterator = () => {
+  const { t } = useTranslation();
+
   // State
   const [originalText, setOriginalText] = useState("");
   const [convertedText, setConvertedText] = useState("");
@@ -58,10 +60,10 @@ const Transliterator = () => {
     setError(null);
   }, []);
 
-  // Convert text with OrfoAI
+  // Convert text with API
   const handleConvert = useCallback(async () => {
     if (!originalText.trim()) {
-      message.warning("Aylantirish uchun matn kiriting");
+      message.warning(t("transliterator.placeholder"));
       return;
     }
 
@@ -89,8 +91,14 @@ const Transliterator = () => {
         setFromScript(response.data.from);
         setToScript(response.data.to);
 
-        const fromName = response.data.from === "cyrillic" ? "Kirill" : "Lotin";
-        const toName = response.data.to === "cyrillic" ? "Kirill" : "Lotin";
+        const fromName =
+          response.data.from === "cyrillic"
+            ? t("transliterator.cyrillic")
+            : t("transliterator.latin");
+        const toName =
+          response.data.to === "cyrillic"
+            ? t("transliterator.cyrillic")
+            : t("transliterator.latin");
 
         message.success(`${fromName}dan ${toName}ga muvaffaqiyatli aylandi`);
       } else {
@@ -98,18 +106,18 @@ const Transliterator = () => {
         message.error(response.error);
       }
     } catch (error) {
-      const errorMsg = error.message || "Aylantirish xatosi";
+      const errorMsg = error.message || t("common.error");
       setError(errorMsg);
       message.error(errorMsg);
     } finally {
       setIsConverting(false);
     }
-  }, [originalText, conversionMode]);
+  }, [originalText, conversionMode, t]);
 
-  // Detect script with OrfoAI
+  // Detect script
   const handleDetectScript = useCallback(async () => {
     if (!originalText.trim()) {
-      message.warning("Aniqlash uchun matn kiriting");
+      message.warning(t("transliterator.placeholder"));
       return;
     }
 
@@ -149,17 +157,17 @@ const Transliterator = () => {
 
       const scriptName =
         script === "cyrillic"
-          ? "Kirill"
+          ? t("transliterator.cyrillic")
           : script === "latin"
-          ? "Lotin"
-          : "Aralash";
-      message.success(`Alifbo aniqlandi: ${scriptName}`);
+          ? t("transliterator.latin")
+          : t("transliterator.mixed");
+      message.success(`${t("transliterator.detectedAs")} ${scriptName}`);
     } catch (error) {
-      message.error("Alifbo aniqlashda xato");
+      message.error(t("common.error"));
     } finally {
       setIsDetecting(false);
     }
-  }, [originalText]);
+  }, [originalText, t]);
 
   // Swap texts
   const handleSwap = useCallback(() => {
@@ -176,23 +184,26 @@ const Transliterator = () => {
     setFromScript(toScript);
     setToScript(tempFrom);
 
-    message.info("Matnlar almashtirildi");
-  }, [originalText, convertedText, fromScript, toScript]);
+    message.info(t("transliterator.swap"));
+  }, [originalText, convertedText, fromScript, toScript, t]);
 
   // Copy to clipboard
-  const handleCopy = useCallback(async (text) => {
-    if (!text.trim()) {
-      message.warning("Nusxalash uchun matn yo'q");
-      return;
-    }
+  const handleCopy = useCallback(
+    async (text) => {
+      if (!text.trim()) {
+        message.warning("Nusxalash uchun matn yo'q");
+        return;
+      }
 
-    try {
-      await navigator.clipboard.writeText(text);
-      message.success("Matn nusxalandi");
-    } catch (error) {
-      message.error("Nusxalashda xato");
-    }
-  }, []);
+      try {
+        await navigator.clipboard.writeText(text);
+        message.success(t("common.copy"));
+      } catch (error) {
+        message.error(t("common.error"));
+      }
+    },
+    [t]
+  );
 
   // Clear all
   const handleClear = useCallback(() => {
@@ -203,20 +214,24 @@ const Transliterator = () => {
     setDetectedScript(null);
     setScriptStatistics(null);
     setError(null);
-    message.info("Hammasi tozalandi");
-  }, []);
+    message.info(t("common.clear"));
+  }, [t]);
 
   // Mode options
   const modeOptions = [
-    { value: "auto", label: "Avtomatik aniqlash", icon: <ScanOutlined /> },
+    {
+      value: "auto",
+      label: t("transliterator.autoDetect"),
+      icon: <ScanOutlined />,
+    },
     {
       value: "toLatin",
-      label: "Kirildan Lotinga",
+      label: t("transliterator.cyrilToLatin"),
       icon: <TranslationOutlined />,
     },
     {
       value: "toCyrillic",
-      label: "Lotindan Kirilga",
+      label: t("transliterator.latinToCyril"),
       icon: <TranslationOutlined />,
     },
   ];
@@ -229,12 +244,12 @@ const Transliterator = () => {
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={12} md={8}>
               <Space className="w-full">
-                <RobotOutlined className="text-blue-500" />
+                <TranslationOutlined className="text-blue-500" />
                 <Select
                   value={conversionMode}
                   onChange={handleModeChange}
                   className="w-full min-w-[200px]"
-                  placeholder="Rejimni tanlang"
+                  placeholder={t("transliterator.title")}
                 >
                   {modeOptions.map((option) => (
                     <Option key={option.value} value={option.value}>
@@ -250,34 +265,34 @@ const Transliterator = () => {
 
             <Col xs={24} sm={12} md={16}>
               <Space className="w-full justify-end" wrap>
-                <Tooltip title="Alifbo turini aniqlash">
+                <Tooltip title={t("transliterator.detect")}>
                   <Button
                     icon={<ScanOutlined />}
                     onClick={handleDetectScript}
                     loading={isDetecting}
                     disabled={!originalText.trim()}
                   >
-                    Aniqlash
+                    {t("transliterator.detect")}
                   </Button>
                 </Tooltip>
 
-                <Tooltip title="Matnlarni almashtirish">
+                <Tooltip title={t("transliterator.swap")}>
                   <Button
                     icon={<SwapOutlined />}
                     onClick={handleSwap}
                     disabled={!convertedText.trim()}
                   >
-                    Almashtirish
+                    {t("transliterator.swap")}
                   </Button>
                 </Tooltip>
 
-                <Tooltip title="Hammani tozalash">
+                <Tooltip title={t("common.clear")}>
                   <Button
                     icon={<ClearOutlined />}
                     onClick={handleClear}
                     disabled={!originalText.trim() && !convertedText.trim()}
                   >
-                    Tozalash
+                    {t("common.clear")}
                   </Button>
                 </Tooltip>
               </Space>
@@ -289,7 +304,7 @@ const Transliterator = () => {
       {/* Error Alert */}
       {error && (
         <Alert
-          message="Xato yuz berdi"
+          message={t("common.error")}
           description={error}
           type="error"
           showIcon
@@ -309,22 +324,31 @@ const Transliterator = () => {
           <Alert
             message={
               <Space>
-                <span>Aniqlangan alifbo:</span>
+                <span>{t("transliterator.detectedAs")}</span>
                 <Tag color="blue">
                   {detectedScript === "cyrillic"
-                    ? "Kirill"
+                    ? t("transliterator.cyrillic")
                     : detectedScript === "latin"
-                    ? "Lotin"
-                    : "Aralash"}
+                    ? t("transliterator.latin")
+                    : t("transliterator.mixed")}
                 </Tag>
               </Space>
             }
             description={
               <div>
-                <span>Kirill: {scriptStatistics.cyrillic.percentage}% | </span>
-                <span>Lotin: {scriptStatistics.latin.percentage}%</span>
+                <span>
+                  {t("transliterator.cyrillic")}:{" "}
+                  {scriptStatistics.cyrillic.percentage}% |{" "}
+                </span>
+                <span>
+                  {t("transliterator.latin")}:{" "}
+                  {scriptStatistics.latin.percentage}%
+                </span>
                 {scriptStatistics.total > 0 && (
-                  <span> | Jami harflar: {scriptStatistics.total}</span>
+                  <span>
+                    {" "}
+                    | {t("common.total")}: {scriptStatistics.total}
+                  </span>
                 )}
               </div>
             }
@@ -346,17 +370,19 @@ const Transliterator = () => {
           <Card
             title={
               <Space>
-                <span>Kirish matni</span>
+                <span>{t("transliterator.inputText")}</span>
                 {fromScript && (
                   <Tag color="green">
-                    {fromScript === "cyrillic" ? "Kirill" : "Lotin"}
+                    {fromScript === "cyrillic"
+                      ? t("transliterator.cyrillic")
+                      : t("transliterator.latin")}
                   </Tag>
                 )}
               </Space>
             }
             extra={
               <Space>
-                <Tooltip title="Matnni nusxalash">
+                <Tooltip title={t("common.copy")}>
                   <Button
                     type="text"
                     icon={<CopyOutlined />}
@@ -371,7 +397,7 @@ const Transliterator = () => {
             <TextArea
               value={originalText}
               onChange={handleOriginalTextChange}
-              placeholder="Bu yerga Qoraqalpoq tilida matn yozing (kirill yoki lotin alifboda)..."
+              placeholder={t("transliterator.placeholder")}
               className="min-h-[400px] resize-none"
               style={{
                 fontSize: "16px",
@@ -380,9 +406,11 @@ const Transliterator = () => {
             />
 
             <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
-              <span>Belgilar: {originalText.length}</span>
               <span>
-                So'zlar:{" "}
+                {t("common.characters")}: {originalText.length}
+              </span>
+              <span>
+                {t("common.words")}:{" "}
                 {
                   originalText
                     .trim()
@@ -399,17 +427,19 @@ const Transliterator = () => {
           <Card
             title={
               <Space>
-                <span>OrfoAI Natijasi</span>
+                <span>{t("transliterator.result")}</span>
                 {toScript && (
                   <Tag color="orange">
-                    {toScript === "cyrillic" ? "Kirill" : "Lotin"}
+                    {toScript === "cyrillic"
+                      ? t("transliterator.cyrillic")
+                      : t("transliterator.latin")}
                   </Tag>
                 )}
               </Space>
             }
             extra={
               <Space>
-                <Tooltip title="Natijani nusxalash">
+                <Tooltip title={t("common.copy")}>
                   <Button
                     type="text"
                     icon={<CopyOutlined />}
@@ -425,7 +455,7 @@ const Transliterator = () => {
                   loading={isConverting}
                   disabled={!originalText.trim()}
                 >
-                  AI Aylantirish
+                  {t("transliterator.convert")}
                 </Button>
               </Space>
             }
@@ -434,14 +464,14 @@ const Transliterator = () => {
             <div className="relative">
               {isConverting && (
                 <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 z-10 flex items-center justify-center rounded-lg">
-                  <Spin size="large" tip="OrfoAI aylantirilmoqda..." />
+                  <Spin size="large" tip={t("transliterator.converting")} />
                 </div>
               )}
 
               <TextArea
                 value={convertedText}
                 readOnly
-                placeholder="OrfoAI transliteratsiya natijasi bu yerda ko'rsatiladi..."
+                placeholder={t("transliterator.result")}
                 className="min-h-[400px] resize-none bg-gray-50 dark:bg-gray-800"
                 style={{
                   fontSize: "16px",
@@ -450,9 +480,11 @@ const Transliterator = () => {
               />
 
               <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
-                <span>Belgilar: {convertedText.length}</span>
                 <span>
-                  So'zlar:{" "}
+                  {t("common.characters")}: {convertedText.length}
+                </span>
+                <span>
+                  {t("common.words")}:{" "}
                   {
                     convertedText
                       .trim()
@@ -475,13 +507,15 @@ const Transliterator = () => {
         >
           <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-blue-200 dark:border-blue-800">
             <div className="text-center">
-              <RobotOutlined className="text-4xl text-blue-500 mb-4" />
+              <TranslationOutlined className="text-4xl text-blue-500 mb-4" />
               <h3 className="text-lg font-semibold mb-2">
-                OrfoAI Pro bilan Professional Transliteratsiya
+                {t("transliterator.title")}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <h4 className="font-medium mb-2">Kirill → Lotin</h4>
+                  <h4 className="font-medium mb-2">
+                    {t("transliterator.cyrilToLatin")}
+                  </h4>
                   <div className="space-y-1 text-gray-600 dark:text-gray-300">
                     <div>а → a, ә → ә, б → b</div>
                     <div>ғ → ğ, қ → q, ң → ń</div>
@@ -489,20 +523,15 @@ const Transliterator = () => {
                   </div>
                 </div>
                 <div>
-                  <h4 className="font-medium mb-2">Lotin → Kirill</h4>
+                  <h4 className="font-medium mb-2">
+                    {t("transliterator.latinToCyril")}
+                  </h4>
                   <div className="space-y-1 text-gray-600 dark:text-gray-300">
                     <div>a → а, ә → ә, b → б</div>
                     <div>ğ → ғ, q → қ, ń → ң</div>
                     <div>ö → ө, ü → ү, h → ҳ</div>
                   </div>
                 </div>
-              </div>
-              <div className="mt-4 p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>OrfoAI Pro:</strong> Eng so'nggi AI texnologiyasi
-                  bilan yuqori aniqlikda transliteratsiya. Avtomatik rejim
-                  alifboni aniqlab, kerakli tomonga aylantiradi.
-                </p>
               </div>
             </div>
           </Card>

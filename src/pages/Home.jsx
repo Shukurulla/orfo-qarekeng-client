@@ -5,6 +5,8 @@ import Transliterator from "@/components/Transliterator/Transliterator";
 import DocumentGenerator from "@/components/DocumentGenerator/DocumentGenerator";
 import WelcomePage from "@/components/Welcome/WelcomePage";
 
+// Bu komponent unchalik o'zgarishi kerak emas, chunki u asosan boshqa komponentlarni ko'rsatadi
+
 const Home = () => {
   const { activeTab } = useAppSelector((state) => state.ui);
 
