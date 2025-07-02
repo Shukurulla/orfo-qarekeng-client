@@ -8,8 +8,7 @@ import karakalpakTranslations from "./locales/kaa.json";
 import uzbekTranslations from "./locales/uz.json";
 
 // i18n konfiguratsiyasi
-i18n
-  .use(LanguageDetector) // Brauzerdagi tilni avtomatik aniqlash
+i18n // Brauzerdagi tilni avtomatik aniqlash
   .use(initReactI18next) // React uchun i18next-ni ishga tushirish
   .init({
     resources: {
