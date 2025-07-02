@@ -414,7 +414,7 @@ const SpellChecker = () => {
       <div className="mb-6">
         <Card size="small" className="shadow-sm">
           <Row gutter={[16, 16]} className="justify-between" align="middle">
-            <Col xs={24} sm={6} md={4}>
+            <Col xs={24} sm={6} md={5}>
               <Space className="">
                 <GlobalOutlined className="text-blue-500" />
                 <Select
@@ -440,7 +440,7 @@ const SpellChecker = () => {
             </Col>
 
             {showScriptSelector && (
-              <Col xs={24} sm={6} md={3}>
+              <Col xs={24} sm={6} md={5}>
                 <Select
                   value={selectedScript}
                   onChange={handleScriptChange}
@@ -464,7 +464,7 @@ const SpellChecker = () => {
               </Col>
             )}
 
-            <Col xs={24} sm={8} md={17}>
+            <Col xs={24} sm={8} md={14}>
               <div className="w-full flex items-center gap-2">
                 <Button
                   type="primary"
