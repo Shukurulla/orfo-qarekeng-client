@@ -1,35 +1,39 @@
-// src/components/Auth/ProfileModal.jsx - TUZATILGAN VERSIYA
-import React, { useState } from "react";
+// src/components/Auth/ProfileModal.jsx
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   Form,
   Input,
   Button,
   Alert,
-  Tabs,
-  Card,
-  Statistic,
+  Divider,
+  Typography,
   Tag,
   Progress,
-  Descriptions,
+  Tabs,
+  Card,
+  Space,
+  Statistic,
 } from "antd";
 import {
   UserOutlined,
   LockOutlined,
   PhoneOutlined,
   CrownOutlined,
-  CalendarOutlined,
-  BarChartOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
-import { useAppSelector, useAppDispatch } from "@/hooks/redux";
+import { useAppSelector, useAppDispatch } from "../../hooks/redux";
 import {
+  hideProfileModal,
   updateMe,
   updatePassword,
-  hideProfileModal,
-  getStats, // QO'SHILGAN
-  authUtils,
-} from "@/store/slices/AuthSlice";
+  logoutLocal,
+  clearErrors,
+  getStats,
+} from "../../store/slices/authSlice";
+import dayjs from "dayjs";
 
+const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
 const ProfileModal = () => {
@@ -47,52 +51,133 @@ const ProfileModal = () => {
 
   const [profileForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
+  const [activeTab, setActiveTab] = useState("profile");
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (showProfileModal && user) {
       profileForm.setFieldsValue({
         firstName: user.firstName,
         lastName: user.lastName,
+        phoneNumber: user.phoneNumber,
       });
 
-      // Load stats
+      // Load stats when profile opens
       dispatch(getStats());
     }
   }, [showProfileModal, user, profileForm, dispatch]);
 
   const handleCancel = () => {
     dispatch(hideProfileModal());
+    dispatch(clearErrors());
     profileForm.resetFields();
     passwordForm.resetFields();
+    setActiveTab("profile");
   };
 
   const handleUpdateProfile = async (values) => {
-    const result = await dispatch(updateMe(values));
-    if (updateMe.fulfilled.match(result)) {
-      // Form reset etish shart emas, chunki ma'lumotlar saqlanadi
+    try {
+      const result = await dispatch(
+        updateMe({
+          firstName: values.firstName.trim(),
+          lastName: values.lastName.trim(),
+        })
+      );
+
+      if (updateMe.fulfilled.match(result)) {
+        message.success("Profil yangilandi");
+      }
+    } catch (error) {
+      console.error("Profile update error:", error);
     }
   };
 
   const handleUpdatePassword = async (values) => {
-    const result = await dispatch(updatePassword(values));
-    if (updatePassword.fulfilled.match(result)) {
-      passwordForm.resetFields();
+    try {
+      const result = await dispatch(
+        updatePassword({
+          passwordCurrent: values.currentPassword,
+          password: values.newPassword,
+          passwordConfirm: values.confirmPassword,
+        })
+      );
+
+      if (updatePassword.fulfilled.match(result)) {
+        passwordForm.resetFields();
+        message.success("Parol yangilandi");
+      }
+    } catch (error) {
+      console.error("Password update error:", error);
     }
   };
 
-  const planStatus = authUtils.getPlanStatus(user);
+  const handleLogout = () => {
+    dispatch(logoutLocal());
+    dispatch(hideProfileModal());
+  };
+
+  const getPlanInfo = () => {
+    if (!user) return { plan: "start", isActive: false };
+
+    const isPro =
+      user.plan === "pro" &&
+      user.planExpiry &&
+      new Date(user.planExpiry) > new Date();
+
+    return {
+      plan: user.plan,
+      isActive: isPro,
+      expiry: user.planExpiry,
+      daysLeft: isPro
+        ? Math.ceil(
+            (new Date(user.planExpiry) - new Date()) / (1000 * 60 * 60 * 24)
+          )
+        : 0,
+    };
+  };
+
+  const getUsageStats = () => {
+    if (!user || !user.dailyUsage) return {};
+
+    const now = new Date();
+    const lastReset = new Date(user.dailyUsage.lastReset);
+    const isNewDay = now.toDateString() !== lastReset.toDateString();
+
+    if (isNewDay) {
+      return {
+        spellCheck: 0,
+        correctText: 0,
+        transliterate: 0,
+        documentGenerator: 0,
+      };
+    }
+
+    return user.dailyUsage;
+  };
+
+  const planInfo = getPlanInfo();
+  const usageStats = getUsageStats();
 
   return (
     <Modal
-      title="Profil"
+      title={
+        <Space>
+          <UserOutlined />
+          <span>Profil sozlamalari</span>
+          {planInfo.isActive && (
+            <Tag color="gold" icon={<CrownOutlined />}>
+              PRO
+            </Tag>
+          )}
+        </Space>
+      }
       open={showProfileModal}
       onCancel={handleCancel}
       footer={null}
-      destroyOnClose
+      destroyOnHidden={true}
       width={600}
     >
-      <Tabs defaultActiveKey="profile">
-        <TabPane tab="Ma'lumotlar" key="profile">
+      <Tabs activeKey={activeTab} onChange={setActiveTab}>
+        <TabPane tab="Profil" key="profile">
           <Form
             form={profileForm}
             layout="vertical"
@@ -101,11 +186,13 @@ const ProfileModal = () => {
           >
             {updateError && (
               <Alert
-                message="Yangilash xatosi"
+                message="Yangilashda xato"
                 description={updateError}
                 type="error"
                 showIcon
                 className="mb-4"
+                closable
+                onClose={() => dispatch(clearErrors())}
               />
             )}
 
@@ -114,11 +201,7 @@ const ProfileModal = () => {
               name="firstName"
               rules={[
                 { required: true, message: "Ismingizni kiriting" },
-                {
-                  min: 2,
-                  message: "Ism kamida 2 belgidan iborat bo'lishi kerak",
-                },
-                { max: 50, message: "Ism 50 belgidan kam bo'lishi kerak" },
+                { min: 2, message: "Ism kamida 2 ta belgi" },
               ]}
             >
               <Input prefix={<UserOutlined />} />
@@ -129,26 +212,19 @@ const ProfileModal = () => {
               name="lastName"
               rules={[
                 { required: true, message: "Familiyangizni kiriting" },
-                {
-                  min: 2,
-                  message: "Familiya kamida 2 belgidan iborat bo'lishi kerak",
-                },
-                { max: 50, message: "Familiya 50 belgidan kam bo'lishi kerak" },
+                { min: 2, message: "Familiya kamida 2 ta belgi" },
               ]}
             >
               <Input prefix={<UserOutlined />} />
             </Form.Item>
 
-            <Descriptions bordered size="small" className="mb-4">
-              <Descriptions.Item label="Telefon raqami" span={3}>
-                {user?.phoneNumber}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ro'yxatdan o'tgan sana" span={3}>
-                {user?.createdAt
-                  ? new Date(user.createdAt).toLocaleDateString("uz-UZ")
-                  : "Noma'lum"}
-              </Descriptions.Item>
-            </Descriptions>
+            <Form.Item label="Telefon raqami" name="phoneNumber">
+              <Input
+                prefix={<PhoneOutlined />}
+                disabled
+                title="Telefon raqamini o'zgartirib bo'lmaydi"
+              />
+            </Form.Item>
 
             <Form.Item>
               <Button
@@ -157,7 +233,7 @@ const ProfileModal = () => {
                 loading={isUpdating}
                 block
               >
-                Saqlash
+                Profilni yangilash
               </Button>
             </Form.Item>
           </Form>
@@ -172,17 +248,19 @@ const ProfileModal = () => {
           >
             {passwordError && (
               <Alert
-                message="Parol yangilash xatosi"
+                message="Parol yangilashda xato"
                 description={passwordError}
                 type="error"
                 showIcon
                 className="mb-4"
+                closable
+                onClose={() => dispatch(clearErrors())}
               />
             )}
 
             <Form.Item
               label="Joriy parol"
-              name="passwordCurrent"
+              name="currentPassword"
               rules={[{ required: true, message: "Joriy parolni kiriting" }]}
             >
               <Input.Password prefix={<LockOutlined />} />
@@ -190,27 +268,24 @@ const ProfileModal = () => {
 
             <Form.Item
               label="Yangi parol"
-              name="password"
+              name="newPassword"
               rules={[
                 { required: true, message: "Yangi parolni kiriting" },
-                {
-                  min: 6,
-                  message: "Parol kamida 6 belgidan iborat bo'lishi kerak",
-                },
+                { min: 6, message: "Parol kamida 6 ta belgi" },
               ]}
             >
               <Input.Password prefix={<LockOutlined />} />
             </Form.Item>
 
             <Form.Item
-              label="Yangi parolni tasdiqlash"
-              name="passwordConfirm"
-              dependencies={["password"]}
+              label="Yangi parolni tasdiqlang"
+              name="confirmPassword"
+              dependencies={["newPassword"]}
               rules={[
                 { required: true, message: "Parolni tasdiqlang" },
                 ({ getFieldValue }) => ({
                   validator(_, value) {
-                    if (!value || getFieldValue("password") === value) {
+                    if (!value || getFieldValue("newPassword") === value) {
                       return Promise.resolve();
                     }
                     return Promise.reject(new Error("Parollar mos kelmaydi"));
@@ -234,152 +309,94 @@ const ProfileModal = () => {
           </Form>
         </TabPane>
 
-        <TabPane tab="Plan va limitlar" key="plan">
+        <TabPane tab="Statistika" key="stats">
           <div className="space-y-4">
-            {/* Plan info */}
+            {/* Plan Info */}
             <Card size="small">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {planStatus.plan === "pro" ? (
-                    <CrownOutlined className="text-yellow-500" />
-                  ) : (
-                    <UserOutlined className="text-gray-500" />
-                  )}
-                  <span className="font-semibold">
-                    {planStatus.plan === "pro" ? "Pro Plan" : "Start Plan"}
-                  </span>
+                <div>
+                  <Text strong>Rejangiz: </Text>
+                  <Tag color={planInfo.isActive ? "gold" : "blue"}>
+                    {planInfo.plan.toUpperCase()}
+                    {planInfo.isActive && <CrownOutlined className="ml-1" />}
+                  </Tag>
                 </div>
-                <Tag color={planStatus.plan === "pro" ? "gold" : "blue"}>
-                  {planStatus.plan === "pro" ? "PREMIUM" : "BEPUL"}
-                </Tag>
+                {!planInfo.isActive && (
+                  <Button type="primary" size="small">
+                    PRO ga o'tish
+                  </Button>
+                )}
               </div>
 
-              {planStatus.plan === "pro" && planStatus.expiry && (
-                <div className="mt-2 text-sm text-gray-600">
-                  <CalendarOutlined className="mr-1" />
-                  Muddat:{" "}
-                  {new Date(planStatus.expiry).toLocaleDateString("uz-UZ")} (
-                  {planStatus.daysLeft} kun qoldi)
+              {planInfo.isActive && (
+                <div className="mt-2">
+                  <Text type="secondary" className="text-xs">
+                    {planInfo.daysLeft} kun qoldi (
+                    {dayjs(planInfo.expiry).format("DD.MM.YYYY")})
+                  </Text>
                 </div>
               )}
             </Card>
 
-            {/* Daily limits */}
-            <Card title="Kunlik limitlar" size="small">
+            {/* Daily Usage */}
+            <Card size="small" title="Bugungi foydalanish">
               <div className="grid grid-cols-2 gap-4">
                 <Statistic
                   title="Imlo tekshirish"
-                  value={authUtils.getRemainingLimit(user, "spellCheck")}
-                  suffix={planStatus.plan === "start" ? "/ 3" : ""}
-                  valueStyle={{
-                    color: planStatus.plan === "pro" ? "#52c41a" : "#1890ff",
-                  }}
+                  value={usageStats.spellCheck || 0}
+                  suffix={planInfo.isActive ? "/ ∞" : "/ 3"}
+                  prefix={<CheckCircleOutlined />}
                 />
                 <Statistic
-                  title="Avtomatik to'g'irlash"
-                  value={authUtils.getRemainingLimit(user, "correctText")}
-                  suffix={planStatus.plan === "start" ? "/ 3" : ""}
-                  valueStyle={{
-                    color: planStatus.plan === "pro" ? "#52c41a" : "#1890ff",
-                  }}
+                  title="Matn to'g'irlash"
+                  value={usageStats.correctText || 0}
+                  suffix={planInfo.isActive ? "/ ∞" : "/ 3"}
+                  prefix={<CheckCircleOutlined />}
                 />
                 <Statistic
                   title="Transliteratsiya"
-                  value={authUtils.getRemainingLimit(user, "transliterate")}
-                  suffix={planStatus.plan === "start" ? "/ 3" : ""}
-                  valueStyle={{
-                    color: planStatus.plan === "pro" ? "#52c41a" : "#1890ff",
-                  }}
+                  value={usageStats.transliterate || 0}
+                  suffix={planInfo.isActive ? "/ ∞" : "/ 3"}
+                  prefix={<CheckCircleOutlined />}
                 />
                 <Statistic
-                  title="Matn yaxshilash"
-                  value={authUtils.getRemainingLimit(user, "documentGenerator")}
-                  suffix={planStatus.plan === "start" ? "/ 3" : ""}
-                  valueStyle={{
-                    color: planStatus.plan === "pro" ? "#52c41a" : "#1890ff",
-                  }}
+                  title="Document generator"
+                  value={usageStats.documentGenerator || 0}
+                  suffix={planInfo.isActive ? "/ ∞" : "/ 3"}
+                  prefix={<CheckCircleOutlined />}
                 />
               </div>
+            </Card>
 
-              {planStatus.plan === "start" && (
-                <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 rounded">
-                  <div className="text-sm text-orange-700 dark:text-orange-300">
-                    Pro rejasiga o'tib cheksiz foydalaning!
-                  </div>
-                  <Button
-                    type="primary"
-                    size="small"
-                    className="mt-2"
-                    onClick={() => window.open("/pricing", "_blank")}
-                  >
-                    Pro rejasi - 30,000 so'm
-                  </Button>
+            {/* Account Info */}
+            <Card size="small" title="Hisob ma'lumotlari">
+              <div className="space-y-2 text-sm">
+                <div>
+                  <Text type="secondary">Ro'yxatdan o'tgan: </Text>
+                  <Text>{dayjs(user?.createdAt).format("DD.MM.YYYY")}</Text>
                 </div>
-              )}
+                <div>
+                  <Text type="secondary">Oxirgi kirish: </Text>
+                  <Text>
+                    {user?.lastLogin
+                      ? dayjs(user.lastLogin).format("DD.MM.YYYY HH:mm")
+                      : "Noma'lum"}
+                  </Text>
+                </div>
+              </div>
             </Card>
           </div>
         </TabPane>
-
-        <TabPane tab="Statistika" key="stats">
-          <Card
-            title="Foydalanish statistikasi"
-            size="small"
-            loading={isLoadingStats}
-            extra={
-              <Button
-                size="small"
-                icon={<BarChartOutlined />}
-                onClick={() => dispatch(getStats())}
-              >
-                Yangilash
-              </Button>
-            }
-          >
-            {stats && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Statistic
-                    title="Jami so'rovlar"
-                    value={stats.totalRequests || 0}
-                  />
-                  <Statistic
-                    title="Muvaffaqiyat %"
-                    value={
-                      stats.successRate
-                        ? (stats.successRate * 100).toFixed(1)
-                        : 0
-                    }
-                    suffix="%"
-                  />
-                </div>
-
-                <div>
-                  <h4 className="font-semibold mb-2">Harakat bo'yicha</h4>
-                  {stats.actionStats?.map((action, index) => (
-                    <div
-                      key={index}
-                      className="flex justify-between items-center py-1"
-                    >
-                      <span className="capitalize">
-                        {action.action === "spellCheck"
-                          ? "Imlo tekshirish"
-                          : action.action === "correctText"
-                          ? "Avtomatik to'g'irlash"
-                          : action.action === "transliterate"
-                          ? "Transliteratsiya"
-                          : action.action === "documentGenerator"
-                          ? "Matn yaxshilash"
-                          : action.action}
-                      </span>
-                      <Tag color="blue">{action.count}</Tag>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Card>
-        </TabPane>
       </Tabs>
+
+      <Divider />
+
+      <div className="flex justify-between">
+        <Button onClick={handleCancel}>Yopish</Button>
+        <Button type="primary" danger onClick={handleLogout}>
+          Tizimdan chiqish
+        </Button>
+      </div>
     </Modal>
   );
 };

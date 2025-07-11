@@ -1,245 +1,142 @@
-// src/contexts/AuthContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { message } from 'antd';
+// src/contexts/AuthContext.jsx - INFINITE LOOP MUAMMOSI TUZATILGAN
+import React, { createContext, useContext, useEffect, useRef } from "react";
+import { useAppSelector, useAppDispatch } from "../hooks/redux";
+import { syncUserFromStorage, getMe } from "../store/slices/authSlice";
 
-const AuthContext = createContext();
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const dispatch = useAppDispatch();
+  const authState = useAppSelector((state) => state.auth);
+  const { user, isAuthenticated, isLoading } = authState;
 
-  // Local storage keys
-  const TOKEN_KEY = 'auth_token';
-  const USER_KEY = 'user_data';
+  // Ref to prevent multiple initialization calls
+  const initializedRef = useRef(false);
 
-  // API base URL
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://ofro-qarekeng-server.vercel.app/api';
-
-  // Check if user is logged in on app start
+  // Initialize auth state on app start - ONLY ONCE
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
+    if (initializedRef.current) return;
 
-  const checkAuthStatus = async () => {
-    try {
-      const token = localStorage.getItem(TOKEN_KEY);
-      const userData = localStorage.getItem(USER_KEY);
-      
-      if (token && userData) {
-        const parsedUser = JSON.parse(userData);
-        
-        // Verify token with server
-        const response = await fetch(`${API_BASE}/auth/verify`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
+    initializedRef.current = true;
 
-        if (response.ok) {
-          const verificationData = await response.data;
-          setUser(parsedUser);
-          setIsAuthenticated(true);
-        } else {
-          // Token invalid, clear storage
-          logout();
-        }
-      }
-    } catch (error) {
-      console.error('Auth check error:', error);
-      logout();
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // Sync user from localStorage first
+    dispatch(syncUserFromStorage());
 
-  const register = async (userData) => {
-    try {
-      setIsLoading(true);
-      
-      const response = await fetch(`${API_BASE}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(userData)
+    // Check if we have a token but no user data
+    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+
+    if (token && !storedUser) {
+      // Only fetch if we have token but no stored user
+      dispatch(getMe()).catch((error) => {
+        console.error("Failed to get user data:", error);
+        // If token is invalid, clear it
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const { token, user: newUser } = data.data;
-        
-        // Save to localStorage
-        localStorage.setItem(TOKEN_KEY, token);
-        localStorage.setItem(USER_KEY, JSON.stringify(newUser));
-        
-        setUser(newUser);
-        setIsAuthenticated(true);
-        
-        message.success('Ro\'yxatdan muvaffaqiyatli o\'tdingiz!');
-        return { success: true, user: newUser };
-      } else {
-        message.error(data.error || 'Ro\'yxatdan o\'tishda xato');
-        return { success: false, error: data.error };
-      }
-    } catch (error) {
-      console.error('Register error:', error);
-      message.error('Tarmoq xatosi');
-      return { success: false, error: error.message };
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, []); // Empty dependency array to run only once
 
-  const login = async (credentials) => {
-    try {
-      setIsLoading(true);
-      
-      const response = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials)
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const { token, user: loginUser } = data.data;
-        
-        // Save to localStorage
-        localStorage.setItem(TOKEN_KEY, token);
-        localStorage.setItem(USER_KEY, JSON.stringify(loginUser));
-        
-        setUser(loginUser);
-        setIsAuthenticated(true);
-        
-        message.success('Muvaffaqiyatli kiritdingiz!');
-        return { success: true, user: loginUser };
-      } else {
-        message.error(data.error || 'Login da xato');
-        return { success: false, error: data.error };
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      message.error('Tarmoq xatosi');
-      return { success: false, error: error.message };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    setUser(null);
-    setIsAuthenticated(false);
-    message.info('Tizimdan chiqdingiz');
-  };
-
-  const updateUser = (updatedUser) => {
-    setUser(updatedUser);
-    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
-  };
-
+  // Get auth token
   const getAuthToken = () => {
-    return localStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem("token");
   };
 
-  // Check daily usage limits
-  const checkUsageLimit = (feature) => {
-    if (!user || user.plan === 'pro') return true;
-    
-    const today = new Date().toDateString();
-    const usage = user.dailyUsage || {};
-    const todayUsage = usage[today] || {};
-    
-    const limit = 3; // Start plan limit
-    const used = todayUsage[feature] || 0;
-    
-    return used < limit;
-  };
-
-  const incrementUsage = async (feature) => {
-    if (!user || user.plan === 'pro') return;
-    
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/auth/usage`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ feature })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        updateUser(data.data.user);
-      }
-    } catch (error) {
-      console.error('Usage increment error:', error);
-    }
-  };
-
+  // Get usage info
   const getUsageInfo = () => {
-    if (!user || user.plan === 'pro') {
-      return { unlimited: true };
+    if (!user || !user.dailyUsage) {
+      return {
+        unlimited: false,
+        usage: {
+          spellCheck: 0,
+          correctText: 0,
+          transliterate: 0,
+          documentGenerator: 0,
+        },
+        remaining: {
+          spellCheck: 3,
+          correctText: 3,
+          transliterate: 3,
+          documentGenerator: 3,
+        },
+        limit: 3,
+      };
     }
-    
-    const today = new Date().toDateString();
-    const usage = user.dailyUsage || {};
-    const todayUsage = usage[today] || {};
-    
-    const limit = 3;
-    
+
+    const now = new Date();
+    const lastReset = new Date(user.dailyUsage.lastReset);
+    const isNewDay = now.toDateString() !== lastReset.toDateString();
+
+    // Check if user has pro plan
+    const isPro =
+      user.plan === "pro" &&
+      user.planExpiry &&
+      new Date(user.planExpiry) > new Date();
+
+    if (isPro) {
+      return {
+        unlimited: true,
+        usage: user.dailyUsage,
+        remaining: {
+          spellCheck: "∞",
+          correctText: "∞",
+          transliterate: "∞",
+          documentGenerator: "∞",
+        },
+        limit: "∞",
+      };
+    }
+
+    // For start plan users
+    const usage = isNewDay
+      ? {
+          spellCheck: 0,
+          correctText: 0,
+          transliterate: 0,
+          documentGenerator: 0,
+        }
+      : user.dailyUsage;
+
+    const remaining = {
+      spellCheck: Math.max(0, 3 - (usage.spellCheck || 0)),
+      correctText: Math.max(0, 3 - (usage.correctText || 0)),
+      transliterate: Math.max(0, 3 - (usage.transliterate || 0)),
+      documentGenerator: Math.max(0, 3 - (usage.documentGenerator || 0)),
+    };
+
     return {
       unlimited: false,
-      limit,
-      usage: {
-        spellCheck: todayUsage.spellCheck || 0,
-        textImprovement: todayUsage.textImprovement || 0,
-        transliteration: todayUsage.transliteration || 0
-      },
-      remaining: {
-        spellCheck: Math.max(0, limit - (todayUsage.spellCheck || 0)),
-        textImprovement: Math.max(0, limit - (todayUsage.textImprovement || 0)),
-        transliteration: Math.max(0, limit - (todayUsage.transliteration || 0))
-      }
+      usage,
+      remaining,
+      limit: 3,
     };
   };
 
   const value = {
+    // Auth state
     user,
-    isLoading,
     isAuthenticated,
-    register,
-    login,
-    logout,
-    updateUser,
+    isLoading,
+
+    // Auth utilities
     getAuthToken,
-    checkUsageLimit,
-    incrementUsage,
-    getUsageInfo
+    getUsageInfo,
+
+    // Full auth state for components that need it
+    ...authState,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export default AuthContext;
+export const useAuthContext = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuthContext must be used within an AuthProvider");
+  }
+  return context;
+};
+
+// Export both named and default
+export { AuthContext };
+export default AuthProvider;

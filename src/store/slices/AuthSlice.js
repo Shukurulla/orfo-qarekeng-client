@@ -3,8 +3,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
 // API base URL
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://ofro-qarekeng-server.vercel.app/api";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:4343/api";
 
 // Utility functions
 const authUtils = {
@@ -29,7 +28,7 @@ const authUtils = {
 
   formatPhoneNumber: (phone) => {
     if (!phone || typeof phone !== "string") {
-      return ""; // Return empty string for invalid phone number
+      return "";
     }
 
     let cleaned = phone.replace(/\D/g, "");
@@ -57,6 +56,14 @@ const authUtils = {
       return true;
     }
 
+    const now = new Date();
+    const lastReset = new Date(user.dailyUsage.lastReset);
+
+    // Agar yangi kun bo'lsa, limitni reset qilish
+    if (now.toDateString() !== lastReset.toDateString()) {
+      return true; // Yangi kun, limit reset
+    }
+
     // Start plan uchun limit tekshirish
     const usage = user.dailyUsage[action] || 0;
     return usage < 3;
@@ -72,6 +79,14 @@ const authUtils = {
       new Date(user.planExpiry) > new Date()
     ) {
       return "∞";
+    }
+
+    const now = new Date();
+    const lastReset = new Date(user.dailyUsage.lastReset);
+
+    // Agar yangi kun bo'lsa, limitni reset qilish
+    if (now.toDateString() !== lastReset.toDateString()) {
+      return 3; // Yangi kun, to'liq limit
     }
 
     // Start plan uchun qolgan limit
@@ -100,176 +115,165 @@ const authUtils = {
   },
 };
 
-// Mock API functions
-const mockAPI = {
+// API functions
+const authAPI = {
   signup: async (userData) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const user = {
-      _id: Date.now().toString(),
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      phoneNumber: userData.phoneNumber,
-      plan: "start",
-      dailyUsage: {
-        spellCheck: 0,
-        correctText: 0,
-        transliterate: 0,
-        documentGenerator: 0,
-        lastReset: new Date(),
+    const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      createdAt: new Date().toISOString(),
-    };
+      body: JSON.stringify(userData),
+    });
 
-    const token = "mock-jwt-token-" + Date.now();
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
+    const data = await response.json();
 
-    return {
-      success: true,
-      data: { user },
-      token,
-    };
+    if (!response.ok) {
+      throw new Error(data.error || "Ro'yxatdan o'tishda xato");
+    }
+
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
+    }
+
+    return data;
   },
 
   login: async (credentials) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    console.log("Login request to:", `${API_BASE_URL}/auth/login`);
+    console.log("Login credentials:", credentials);
 
-    if (
-      credentials.phoneNumber === "+998901234567" &&
-      credentials.password === "password123"
-    ) {
-      const user = {
-        _id: "1",
-        firstName: "Test",
-        lastName: "User",
-        phoneNumber: "+998901234567",
-        plan: "start",
-        dailyUsage: {
-          spellCheck: 1,
-          correctText: 0,
-          transliterate: 2,
-          documentGenerator: 0,
-          lastReset: new Date(),
-        },
-        createdAt: new Date().toISOString(),
-      };
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(credentials),
+    });
 
-      const token = "mock-jwt-token-" + Date.now();
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+    const data = await response.json();
+    console.log("Login response:", data);
 
-      return {
-        success: true,
-        data: { user },
-        token,
-      };
+    if (!response.ok) {
+      throw new Error(data.error || "Kirishda xato");
     }
 
-    return {
-      success: false,
-      error: "Telefon raqami yoki parol xato",
-    };
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
+    }
+
+    return data;
   },
 
   logout: async () => {
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      } catch (error) {
+        console.error("Logout API error:", error);
+      }
+    }
+
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     return { success: true };
   },
 
   getMe: async () => {
-    const user = authUtils.getCurrentUser();
-    if (user) {
-      return {
-        success: true,
-        data: { user },
-      };
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      throw new Error("Token not found");
     }
-    return {
-      success: false,
-      error: "User not found",
-    };
+
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Ma'lumot olishda xato");
+    }
+
+    localStorage.setItem("user", JSON.stringify(data.data.user));
+    return data;
   },
 
   updateMe: async (userData) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const token = localStorage.getItem("token");
 
-    const currentUser = authUtils.getCurrentUser();
-    if (!currentUser) {
-      return {
-        success: false,
-        error: "User not found",
-      };
+    const response = await fetch(`${API_BASE_URL}/auth/update-me`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(userData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Yangilashda xato");
     }
 
-    const updatedUser = {
-      ...currentUser,
-      ...userData,
-      updatedAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem("user", JSON.stringify(updatedUser));
-
-    return {
-      success: true,
-      data: { user: updatedUser },
-    };
+    localStorage.setItem("user", JSON.stringify(data.data.user));
+    return data;
   },
 
   updatePassword: async (passwordData) => {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const token = localStorage.getItem("token");
 
-    // Mock password validation
-    if (passwordData.passwordCurrent !== "password123") {
-      return {
-        success: false,
-        error: "Joriy parol noto'g'ri",
-      };
+    const response = await fetch(`${API_BASE_URL}/auth/update-password`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(passwordData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Parol yangilashda xato");
     }
 
-    if (passwordData.password !== passwordData.passwordConfirm) {
-      return {
-        success: false,
-        error: "Parollar mos kelmaydi",
-      };
+    if (data.token) {
+      localStorage.setItem("token", data.token);
     }
 
-    return {
-      success: true,
-      message: "Parol muvaffaqiyatli yangilandi",
-    };
+    return data;
   },
 
   getStats: async () => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    const token = localStorage.getItem("token");
 
-    const currentUser = authUtils.getCurrentUser();
-    if (!currentUser) {
-      return {
-        success: false,
-        error: "User not found",
-      };
+    const response = await fetch(`${API_BASE_URL}/auth/stats`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Statistika olishda xato");
     }
 
-    // Mock statistics
-    const mockStats = {
-      totalRequests: 45,
-      successRate: 0.89,
-      actionStats: [
-        { action: "spellCheck", count: 15 },
-        { action: "correctText", count: 8 },
-        { action: "transliterate", count: 12 },
-        { action: "documentGenerator", count: 10 },
-      ],
-      dailyUsage: currentUser.dailyUsage,
-      planInfo: authUtils.getPlanStatus(currentUser),
-    };
-
-    return {
-      success: true,
-      data: mockStats,
-    };
+    return data;
   },
 };
 
@@ -278,10 +282,7 @@ export const signup = createAsyncThunk(
   "auth/signup",
   async (userData, { rejectWithValue }) => {
     try {
-      const result = await mockAPI.signup(userData);
-      if (!result.success) {
-        return rejectWithValue(result.error);
-      }
+      const result = await authAPI.signup(userData);
       return result.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -293,10 +294,7 @@ export const login = createAsyncThunk(
   "auth/login",
   async (credentials, { rejectWithValue }) => {
     try {
-      const result = await mockAPI.login(credentials);
-      if (!result.success) {
-        return rejectWithValue(result.error);
-      }
+      const result = await authAPI.login(credentials);
       return result.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -308,10 +306,7 @@ export const logout = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      const result = await mockAPI.logout();
-      if (!result.success) {
-        return rejectWithValue(result.error);
-      }
+      const result = await authAPI.logout();
       return result;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -323,10 +318,7 @@ export const getMe = createAsyncThunk(
   "auth/getMe",
   async (_, { rejectWithValue }) => {
     try {
-      const result = await mockAPI.getMe();
-      if (!result.success) {
-        return rejectWithValue(result.error);
-      }
+      const result = await authAPI.getMe();
       return result.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -334,15 +326,11 @@ export const getMe = createAsyncThunk(
   }
 );
 
-// QO'SHILGAN: updateMe thunk
 export const updateMe = createAsyncThunk(
   "auth/updateMe",
   async (userData, { rejectWithValue }) => {
     try {
-      const result = await mockAPI.updateMe(userData);
-      if (!result.success) {
-        return rejectWithValue(result.error);
-      }
+      const result = await authAPI.updateMe(userData);
       return result.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -350,15 +338,11 @@ export const updateMe = createAsyncThunk(
   }
 );
 
-// QO'SHILGAN: updatePassword thunk
 export const updatePassword = createAsyncThunk(
   "auth/updatePassword",
   async (passwordData, { rejectWithValue }) => {
     try {
-      const result = await mockAPI.updatePassword(passwordData);
-      if (!result.success) {
-        return rejectWithValue(result.error);
-      }
+      const result = await authAPI.updatePassword(passwordData);
       return result;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -366,16 +350,57 @@ export const updatePassword = createAsyncThunk(
   }
 );
 
-// QO'SHILGAN: getStats thunk
 export const getStats = createAsyncThunk(
   "auth/getStats",
   async (_, { rejectWithValue }) => {
     try {
-      const result = await mockAPI.getStats();
-      if (!result.success) {
-        return rejectWithValue(result.error);
-      }
+      const result = await authAPI.getStats();
       return result.data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Local usage update thunk
+export const updateLocalUsage = createAsyncThunk(
+  "auth/updateLocalUsage",
+  async (action, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+      const user = auth.user;
+
+      if (!user) {
+        return rejectWithValue("User not found");
+      }
+
+      const now = new Date();
+      const lastReset = new Date(user.dailyUsage.lastReset);
+
+      // Reset if new day
+      let updatedUsage = { ...user.dailyUsage };
+      if (now.toDateString() !== lastReset.toDateString()) {
+        updatedUsage = {
+          spellCheck: 0,
+          correctText: 0,
+          transliterate: 0,
+          documentGenerator: 0,
+          lastReset: now.toISOString(),
+        };
+      }
+
+      // Increment the specific action
+      updatedUsage[action] = (updatedUsage[action] || 0) + 1;
+
+      const updatedUser = {
+        ...user,
+        dailyUsage: updatedUsage,
+      };
+
+      // Update localStorage
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      return { user: updatedUser };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -401,7 +426,7 @@ const initialState = {
   updateError: null,
   passwordError: null,
 
-  // Stats - QO'SHILGAN
+  // Stats
   stats: null,
   isLoadingStats: false,
   statsError: null,
@@ -436,6 +461,7 @@ const authSlice = createSlice({
     hideLoginModal: (state) => {
       state.showLoginModal = false;
       state.redirectAfterLogin = null;
+      state.loginError = null;
     },
 
     showSignupModal: (state) => {
@@ -444,6 +470,7 @@ const authSlice = createSlice({
 
     hideSignupModal: (state) => {
       state.showSignupModal = false;
+      state.signupError = null;
     },
 
     showProfileModal: (state) => {
@@ -461,6 +488,33 @@ const authSlice = createSlice({
 
       state.user = user;
       state.isAuthenticated = isAuthenticated;
+    },
+
+    // Real-time usage decrement
+    decrementLimit: (state, action) => {
+      const actionType = action.payload;
+      if (state.user && state.user.dailyUsage) {
+        const now = new Date();
+        const lastReset = new Date(state.user.dailyUsage.lastReset);
+
+        // Reset if new day
+        if (now.toDateString() !== lastReset.toDateString()) {
+          state.user.dailyUsage = {
+            spellCheck: 0,
+            correctText: 0,
+            transliterate: 0,
+            documentGenerator: 0,
+            lastReset: now.toISOString(),
+          };
+        }
+
+        // Increment usage
+        state.user.dailyUsage[actionType] =
+          (state.user.dailyUsage[actionType] || 0) + 1;
+
+        // Update localStorage
+        localStorage.setItem("user", JSON.stringify(state.user));
+      }
     },
 
     // Manual logout
@@ -553,7 +607,7 @@ const authSlice = createSlice({
         }
       });
 
-    // Update me - QO'SHILGAN
+    // Update me
     builder
       .addCase(updateMe.pending, (state) => {
         state.isUpdating = true;
@@ -562,14 +616,13 @@ const authSlice = createSlice({
       .addCase(updateMe.fulfilled, (state, action) => {
         state.isUpdating = false;
         state.user = action.payload.user;
-        localStorage.setItem("user", JSON.stringify(action.payload.user));
       })
       .addCase(updateMe.rejected, (state, action) => {
         state.isUpdating = false;
         state.updateError = action.payload;
       });
 
-    // Update password - QO'SHILGAN
+    // Update password
     builder
       .addCase(updatePassword.pending, (state) => {
         state.isUpdatingPassword = true;
@@ -583,7 +636,7 @@ const authSlice = createSlice({
         state.passwordError = action.payload;
       });
 
-    // Get stats - QO'SHILGAN
+    // Get stats
     builder
       .addCase(getStats.pending, (state) => {
         state.isLoadingStats = true;
@@ -597,6 +650,15 @@ const authSlice = createSlice({
         state.isLoadingStats = false;
         state.statsError = action.payload;
       });
+
+    // Update local usage
+    builder
+      .addCase(updateLocalUsage.fulfilled, (state, action) => {
+        state.user = action.payload.user;
+      })
+      .addCase(updateLocalUsage.rejected, (state, action) => {
+        console.error("Failed to update local usage:", action.payload);
+      });
   },
 });
 
@@ -609,6 +671,7 @@ export const {
   showProfileModal,
   hideProfileModal,
   syncUserFromStorage,
+  decrementLimit,
   logoutLocal,
 } = authSlice.actions;
 

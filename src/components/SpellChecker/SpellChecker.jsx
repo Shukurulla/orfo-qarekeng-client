@@ -1,4 +1,4 @@
-// src/components/SpellChecker/SpellChecker.jsx - To'liq tuzatilgan versiya
+// src/components/SpellChecker/SpellChecker.jsx - AUTH CHEKLOVI BILAN TO'LIQ VERSIYA
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
@@ -38,10 +38,9 @@ import {
   checkSpelling,
   correctText,
   testConnection,
-} from "@/utils/OrfoAIService";
+} from "../../utils/OrfoAIService";
 import { useTranslation } from "react-i18next";
-import { useAppSelector, useAppDispatch } from "@/hooks/redux";
-import { showLoginModal } from "@/store/slices/AuthSlice";
+import { useAuth } from "../../hooks/useAuth";
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -50,10 +49,17 @@ const { TextArea } = Input;
 const SpellChecker = () => {
   const textAreaRef = useRef(null);
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
 
-  // Redux state
-  const { isAuthenticated, user } = useAppSelector((state) => state.auth || {});
+  // Auth hook
+  const {
+    isAuthenticated,
+    user,
+    login,
+    getRemainingLimit,
+    canUse,
+    useAction,
+    getPlanStatus,
+  } = useAuth();
 
   // Component state
   const [originalText, setOriginalText] = useState("");
@@ -112,61 +118,6 @@ const SpellChecker = () => {
     },
   ];
 
-  // Auth utility functions
-  const checkDailyLimit = (action) => {
-    if (!user || !user.dailyUsage) return true;
-
-    // Pro plan uchun limit yo'q
-    if (
-      user.plan === "pro" &&
-      user.planExpiry &&
-      new Date(user.planExpiry) > new Date()
-    ) {
-      return true;
-    }
-
-    // Start plan uchun limit tekshirish
-    const usage = user.dailyUsage[action] || 0;
-    return usage < 3;
-  };
-
-  const getRemainingLimit = (action) => {
-    if (!user || !user.dailyUsage) return 3;
-
-    // Pro plan uchun cheksiz
-    if (
-      user.plan === "pro" &&
-      user.planExpiry &&
-      new Date(user.planExpiry) > new Date()
-    ) {
-      return "∞";
-    }
-
-    // Start plan uchun qolgan limit
-    const usage = user.dailyUsage[action] || 0;
-    return Math.max(0, 3 - usage);
-  };
-
-  const getPlanStatus = () => {
-    if (!user) return { plan: "start", isActive: false };
-
-    const isPro =
-      user.plan === "pro" &&
-      user.planExpiry &&
-      new Date(user.planExpiry) > new Date();
-
-    return {
-      plan: user.plan,
-      isActive: isPro,
-      expiry: user.planExpiry,
-      daysLeft: isPro
-        ? Math.ceil(
-            (new Date(user.planExpiry) - new Date()) / (1000 * 60 * 60 * 24)
-          )
-        : 0,
-    };
-  };
-
   // Get current language info
   const getCurrentLanguageInfo = () => {
     const lang = languageOptions.find((l) => l.value === selectedLanguage);
@@ -182,7 +133,7 @@ const SpellChecker = () => {
       okText: "Kirish",
       cancelText: "Bekor qilish",
       onOk: () => {
-        dispatch(showLoginModal("/spellcheck"));
+        login();
       },
     });
   };
@@ -219,6 +170,7 @@ const SpellChecker = () => {
     setOriginalText(demoText);
     setDisplayText(demoText);
 
+    setIsChecking(true);
     setTimeout(() => {
       const demoResults = [
         {
@@ -270,8 +222,9 @@ const SpellChecker = () => {
         scriptType: "latin",
       });
       setHasChecked(true);
+      setIsChecking(false);
       message.info("Demo natija ko'rsatildi");
-    }, 1000);
+    }, 1500);
   };
 
   // Event handlers
@@ -330,7 +283,7 @@ const SpellChecker = () => {
     }
 
     // Limit check
-    if (!checkDailyLimit("spellCheck")) {
+    if (!canUse("spellCheck")) {
       showLimitExceeded("spellCheck");
       return;
     }
@@ -349,6 +302,9 @@ const SpellChecker = () => {
     setError(null);
 
     try {
+      // Use action to decrement limit
+      await useAction("spellCheck");
+
       const response = await checkSpelling(originalText, {
         language: selectedLanguage,
         script: selectedScript,
@@ -395,7 +351,14 @@ const SpellChecker = () => {
     } finally {
       setIsChecking(false);
     }
-  }, [originalText, selectedLanguage, selectedScript, isAuthenticated]);
+  }, [
+    originalText,
+    selectedLanguage,
+    selectedScript,
+    isAuthenticated,
+    canUse,
+    useAction,
+  ]);
 
   // Auto correct function
   const handleAutoCorrect = useCallback(async () => {
@@ -404,7 +367,7 @@ const SpellChecker = () => {
       return;
     }
 
-    if (!checkDailyLimit("correctText")) {
+    if (!canUse("correctText")) {
       showLimitExceeded("correctText");
       return;
     }
@@ -419,6 +382,9 @@ const SpellChecker = () => {
     setError(null);
 
     try {
+      // Use action to decrement limit
+      await useAction("correctText");
+
       const response = await correctText(originalText, {
         language: selectedLanguage,
         script: selectedScript,
@@ -455,7 +421,14 @@ const SpellChecker = () => {
       setIsCorrecting(false);
       setCorrectionInProgress(false);
     }
-  }, [originalText, selectedLanguage, selectedScript, isAuthenticated]);
+  }, [
+    originalText,
+    selectedLanguage,
+    selectedScript,
+    isAuthenticated,
+    canUse,
+    useAction,
+  ]);
 
   // Auto check after correction
   const handleAutoCheckAfterCorrection = useCallback(
@@ -689,11 +662,15 @@ const SpellChecker = () => {
                   disabled={!originalText.trim() || correctionInProgress}
                   size="large"
                 >
-                  Tekshirish
-                  {isAuthenticated && (
-                    <span className="ml-1">
-                      ({getRemainingLimit("spellCheck")})
-                    </span>
+                  {isAuthenticated ? (
+                    <>
+                      Tekshirish
+                      <span className="ml-1">
+                        ({getRemainingLimit("spellCheck")})
+                      </span>
+                    </>
+                  ) : (
+                    "Tizimga kiring"
                   )}
                 </Button>
 
@@ -704,11 +681,15 @@ const SpellChecker = () => {
                   disabled={!originalText.trim() || isChecking}
                   className="bg-green-500 text-white border-green-500 hover:bg-green-600"
                 >
-                  To'g'irlash
-                  {isAuthenticated && (
-                    <span className="ml-1">
-                      ({getRemainingLimit("correctText")})
-                    </span>
+                  {isAuthenticated ? (
+                    <>
+                      To'g'irlash
+                      <span className="ml-1">
+                        ({getRemainingLimit("correctText")})
+                      </span>
+                    </>
+                  ) : (
+                    "Tizimga kiring"
                   )}
                 </Button>
 
@@ -730,7 +711,25 @@ const SpellChecker = () => {
             </Col>
           </Row>
 
-          {/* Limit warning */}
+          {/* Auth warning for non-authenticated users */}
+          {!isAuthenticated && (
+            <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
+              <Text className="text-yellow-700 dark:text-yellow-300 text-xs">
+                Bu funksiyalardan foydalanish uchun{" "}
+                <Button
+                  type="link"
+                  size="small"
+                  className="p-0 h-auto text-yellow-700"
+                  onClick={login}
+                >
+                  tizimga kiring
+                </Button>
+                {" yoki demo versiyasini sinab ko'ring."}
+              </Text>
+            </div>
+          )}
+
+          {/* Limit warning for authenticated users */}
           {isAuthenticated && planStatus.plan === "start" && (
             <div className="mt-3 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded">
               <Text className="text-orange-700 dark:text-orange-300 text-xs">
@@ -1127,12 +1126,11 @@ const SpellChecker = () => {
                             type="link"
                             size="small"
                             className="p-0 h-auto"
-                            onClick={() =>
-                              dispatch(showLoginModal("/spellcheck"))
-                            }
+                            onClick={login}
                           >
                             tizimga kiring
                           </Button>
+                          {" yoki demo versiyasini sinab ko'ring"}
                         </Text>
                       </div>
                     )}

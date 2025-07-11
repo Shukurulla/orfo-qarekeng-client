@@ -1,4 +1,4 @@
-// src/App.jsx - AuthProvider bilan yangilangan
+// src/App.jsx - TO'LIQ TUZATILGAN VERSIYA
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Provider } from "react-redux";
@@ -9,10 +9,10 @@ import { ToastContainer } from "react-toastify";
 import { store } from "./store";
 import { useAppSelector, useAppDispatch } from "./hooks/redux";
 import { updateDeviceInfo } from "./store/slices/uiSlice";
-import { syncUserFromStorage } from "./store/slices/AuthSlice";
+import { syncUserFromStorage } from "./store/slices/authSlice";
 import { useTranslation } from "react-i18next";
 
-// Auth Provider - QO'SHILDI
+// Auth Provider
 import { AuthProvider } from "./contexts/AuthContext";
 
 // Components
@@ -27,7 +27,7 @@ import SimpleSpellChecker from "./components/SpellChecker/SpellChecker";
 import Transliterator from "./components/Transliterator/Transliterator";
 import DocumentGenerator from "./components/DocumentGenerator/DocumentGenerator";
 
-// Auth Components - QO'SHILDI
+// Auth Components
 import { LoginModal, SignupModal, ProfileModal } from "./components/Auth";
 
 // Styles
@@ -78,8 +78,8 @@ const antTheme = (isDark) => ({
 // Main App component
 function AppContent() {
   const dispatch = useAppDispatch();
-  const { theme } = useAppSelector((state) => state.ui);
-  const isDark = theme === "dark";
+  const { theme: currentTheme } = useAppSelector((state) => state.ui);
+  const isDark = currentTheme === "dark";
   const { i18n } = useTranslation();
 
   // Device resize handler
@@ -98,7 +98,7 @@ function AppContent() {
     };
   }, [dispatch]);
 
-  // Auth initialization - QO'SHILDI
+  // Auth initialization
   useEffect(() => {
     // Sync user from localStorage on app start
     dispatch(syncUserFromStorage());
@@ -138,7 +138,7 @@ function AppContent() {
                   <Route path="/document" element={<DocumentGenerator />} />
                   <Route path="/about" element={<About />} />
 
-                  {/* Protected Routes - QO'SHILDI */}
+                  {/* Protected Routes */}
                   <Route
                     path="/history"
                     element={
@@ -154,7 +154,7 @@ function AppContent() {
             </ErrorBoundary>
           </Router>
 
-          {/* Auth Modals - QO'SHILDI */}
+          {/* Auth Modals */}
           <LoginModal />
           <SignupModal />
           <ProfileModal />

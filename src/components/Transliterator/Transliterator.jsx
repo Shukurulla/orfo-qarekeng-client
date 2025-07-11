@@ -1,4 +1,4 @@
-// src/components/Transliterator/Transliterator.jsx
+// src/components/Transliterator/Transliterator.jsx - AUTH CHEKLOVI BILAN TO'LIQ VERSIYA
 
 import React, { useState, useCallback } from "react";
 import {
@@ -14,6 +14,7 @@ import {
   message,
   Input,
   Tag,
+  Modal,
 } from "antd";
 import {
   SwapOutlined,
@@ -21,20 +22,34 @@ import {
   ClearOutlined,
   TranslationOutlined,
   ScanOutlined,
+  LockOutlined,
+  CrownOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import {
   transliterate,
   autoTransliterate,
   detectScript,
-} from "@/utils/OrfoAIService";
+} from "../../utils/OrfoAIService";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../../hooks/useAuth";
 
 const { TextArea } = Input;
 const { Option } = Select;
 
 const Transliterator = () => {
   const { t } = useTranslation();
+
+  // Auth hook
+  const {
+    isAuthenticated,
+    user,
+    login,
+    getRemainingLimit,
+    canUse,
+    useAction,
+    getPlanStatus,
+  } = useAuth();
 
   // State
   const [originalText, setOriginalText] = useState("");
@@ -47,6 +62,52 @@ const Transliterator = () => {
   const [error, setError] = useState(null);
   const [detectedScript, setDetectedScript] = useState(null);
   const [scriptStatistics, setScriptStatistics] = useState(null);
+
+  // Show auth required modal
+  const showAuthRequired = () => {
+    Modal.confirm({
+      title: "Tizimga kirish kerak",
+      content: "Bu funksiyadan foydalanish uchun tizimga kirishingiz kerak.",
+      okText: "Kirish",
+      cancelText: "Bekor qilish",
+      onOk: () => {
+        login();
+      },
+    });
+  };
+
+  // Show limit exceeded modal
+  const showLimitExceeded = () => {
+    Modal.confirm({
+      title: "Kunlik limit tugagan",
+      content: (
+        <div>
+          <p>Transliteratsiya uchun kunlik limitingiz tugagan.</p>
+          <p>Pro rejasiga o'tib cheksiz foydalaning!</p>
+        </div>
+      ),
+      okText: "Pro rejasi",
+      cancelText: "Yopish",
+      onOk: () => {
+        window.open("/pricing", "_blank");
+      },
+    });
+  };
+
+  // Demo function for non-authenticated users
+  const demoTransliterate = () => {
+    const demoText = "Qaraqalpaqstan Respublikası";
+    setOriginalText(demoText);
+    setIsConverting(true);
+
+    setTimeout(() => {
+      setConvertedText("Қарақалпақстан Республикасы");
+      setFromScript("latin");
+      setToScript("cyrillic");
+      setIsConverting(false);
+      message.info("Demo transliteratsiya ko'rsatildi");
+    }, 1500);
+  };
 
   // Handle text input
   const handleOriginalTextChange = useCallback((e) => {
@@ -62,6 +123,18 @@ const Transliterator = () => {
 
   // Convert text with API
   const handleConvert = useCallback(async () => {
+    // Auth check
+    if (!isAuthenticated) {
+      showAuthRequired();
+      return;
+    }
+
+    // Limit check
+    if (!canUse("transliterate")) {
+      showLimitExceeded();
+      return;
+    }
+
     if (!originalText.trim()) {
       message.warning(t("transliterator.placeholder"));
       return;
@@ -76,6 +149,9 @@ const Transliterator = () => {
     setError(null);
 
     try {
+      // Use action to decrement limit
+      await useAction("transliterate");
+
       let response;
 
       if (conversionMode === "auto") {
@@ -112,7 +188,7 @@ const Transliterator = () => {
     } finally {
       setIsConverting(false);
     }
-  }, [originalText, conversionMode, t]);
+  }, [originalText, conversionMode, t, isAuthenticated, canUse, useAction]);
 
   // Detect script
   const handleDetectScript = useCallback(async () => {
@@ -236,6 +312,8 @@ const Transliterator = () => {
     },
   ];
 
+  const planStatus = getPlanStatus();
+
   return (
     <div className="p-4 lg:p-6 h-full">
       {/* Header Controls */}
@@ -265,6 +343,21 @@ const Transliterator = () => {
 
             <Col xs={24} sm={12} md={16}>
               <Space className="w-full justify-end" wrap>
+                {/* Auth status indicator */}
+                {!isAuthenticated && (
+                  <Tooltip title="Tizimga kirishingiz kerak">
+                    <LockOutlined className="text-red-500" />
+                  </Tooltip>
+                )}
+
+                {isAuthenticated &&
+                  planStatus.plan === "pro" &&
+                  planStatus.isActive && (
+                    <Tooltip title="Pro foydalanuvchi">
+                      <CrownOutlined className="text-yellow-500" />
+                    </Tooltip>
+                  )}
+
                 <Tooltip title={t("transliterator.detect")}>
                   <Button
                     icon={<ScanOutlined />}
@@ -286,6 +379,13 @@ const Transliterator = () => {
                   </Button>
                 </Tooltip>
 
+                <Button
+                  onClick={demoTransliterate}
+                  className="bg-purple-500 text-white border-purple-500"
+                >
+                  Demo
+                </Button>
+
                 <Tooltip title={t("common.clear")}>
                   <Button
                     icon={<ClearOutlined />}
@@ -298,6 +398,40 @@ const Transliterator = () => {
               </Space>
             </Col>
           </Row>
+
+          {/* Auth warning for non-authenticated users */}
+          {!isAuthenticated && (
+            <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
+              <div className="text-yellow-700 dark:text-yellow-300 text-xs">
+                Bu funksiyalardan foydalanish uchun{" "}
+                <Button
+                  type="link"
+                  size="small"
+                  className="p-0 h-auto text-yellow-700"
+                  onClick={login}
+                >
+                  tizimga kiring
+                </Button>
+                {" yoki demo versiyasini sinab ko'ring."}
+              </div>
+            </div>
+          )}
+
+          {/* Limit warning for authenticated users */}
+          {isAuthenticated && planStatus.plan === "start" && (
+            <div className="mt-3 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded">
+              <div className="text-orange-700 dark:text-orange-300 text-xs">
+                Kunlik limit: Transliteratsiya{" "}
+                {getRemainingLimit("transliterate")}/3.{" "}
+                <a
+                  href="/pricing"
+                  className="text-blue-600 hover:underline ml-1"
+                >
+                  Pro rejasiga o'ting
+                </a>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -455,7 +589,16 @@ const Transliterator = () => {
                   loading={isConverting}
                   disabled={!originalText.trim()}
                 >
-                  {t("transliterator.convert")}
+                  {isAuthenticated ? (
+                    <>
+                      {t("transliterator.convert")}
+                      <span className="ml-1">
+                        ({getRemainingLimit("transliterate")})
+                      </span>
+                    </>
+                  ) : (
+                    "Tizimga kiring"
+                  )}
                 </Button>
               </Space>
             }
@@ -533,6 +676,24 @@ const Transliterator = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Auth prompt for non-authenticated users */}
+              {!isAuthenticated && (
+                <div className="mt-4 p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                  <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                    Bu funksiyadan foydalanish uchun{" "}
+                    <Button
+                      type="link"
+                      size="small"
+                      className="p-0 h-auto"
+                      onClick={login}
+                    >
+                      tizimga kiring
+                    </Button>
+                    {" yoki demo versiyasini sinab ko'ring"}
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </motion.div>

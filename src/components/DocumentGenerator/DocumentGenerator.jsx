@@ -1,4 +1,4 @@
-// src/components/DocumentGenerator/DocumentGenerator.jsx
+// src/components/DocumentGenerator/DocumentGenerator.jsx - AUTH CHEKLOVI BILAN TO'LIQ VERSIYA
 
 import React, { useState, useCallback } from "react";
 import {
@@ -16,6 +16,8 @@ import {
   Typography,
   Divider,
   Slider,
+  Modal,
+  Tooltip,
 } from "antd";
 import {
   FileTextOutlined,
@@ -29,10 +31,13 @@ import {
   CopyOutlined,
   ThunderboltOutlined,
   SoundOutlined,
+  LockOutlined,
+  CrownOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
-import { improveText, generateSong } from "@/utils/OrfoAIService";
+import { improveText, generateSong } from "../../utils/OrfoAIService";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../../hooks/useAuth";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -40,6 +45,17 @@ const { Title, Text, Paragraph } = Typography;
 
 const DocumentGenerator = () => {
   const { t } = useTranslation();
+
+  // Auth hook
+  const {
+    isAuthenticated,
+    user,
+    login,
+    getRemainingLimit,
+    canUse,
+    useAction,
+    getPlanStatus,
+  } = useAuth();
 
   // State
   const [inputText, setInputText] = useState("");
@@ -58,24 +74,24 @@ const DocumentGenerator = () => {
   const [error, setError] = useState(null);
   const [showResult, setShowResult] = useState(false);
 
-  // Til tanlash opsiyalari
+  // Language options
   const languageOptions = [
     { value: "uz", label: t("language.uz"), flag: "🇺🇿" },
     { value: "kaa", label: t("language.kaa"), flag: "🏳️" },
     { value: "ru", label: "Rus tili", flag: "🇷🇺" },
   ];
 
-  // Alifbo tanlash opsiyalari
+  // Script options
   const scriptOptions = [
     { value: "latin", label: t("language.latin"), icon: "🅰️" },
     { value: "cyrillic", label: t("language.cyrillic"), icon: "Я" },
   ];
 
-  // Alifbo ko'rsatilishini tekshirish
+  // Show script selector
   const showScriptSelector =
     selectedLanguage === "uz" || selectedLanguage === "kaa";
 
-  // Kontent turi opsiyalari
+  // Content type options
   const contentTypeOptions = [
     {
       value: "text",
@@ -85,7 +101,7 @@ const DocumentGenerator = () => {
     { value: "song", label: "Qo'shiq yaratish", icon: <SoundOutlined /> },
   ];
 
-  // Qo'shiq uslublari
+  // Song styles
   const songStyleOptions = [
     {
       value: "classik",
@@ -148,7 +164,7 @@ const DocumentGenerator = () => {
     },
   ];
 
-  // Yaxshilash darajasi
+  // Level descriptions
   const getLevelDescription = (level) => {
     const levels = {
       1: t("documentGenerator.levels.min"),
@@ -160,14 +176,89 @@ const DocumentGenerator = () => {
     return levels[level] || levels[3];
   };
 
-  // Matn kiritish
+  // Show auth required modal
+  const showAuthRequired = () => {
+    Modal.confirm({
+      title: "Tizimga kirish kerak",
+      content: "Bu funksiyadan foydalanish uchun tizimga kirishingiz kerak.",
+      okText: "Kirish",
+      cancelText: "Bekor qilish",
+      onOk: () => {
+        login();
+      },
+    });
+  };
+
+  // Show limit exceeded modal
+  const showLimitExceeded = () => {
+    Modal.confirm({
+      title: "Kunlik limit tugagan",
+      content: (
+        <div>
+          <p>Document generator uchun kunlik limitingiz tugagan.</p>
+          <p>Pro rejasiga o'tib cheksiz foydalaning!</p>
+        </div>
+      ),
+      okText: "Pro rejasi",
+      cancelText: "Yopish",
+      onOk: () => {
+        window.open("/pricing", "_blank");
+      },
+    });
+  };
+
+  // Demo functions
+  const demoImproveText = () => {
+    const demoText =
+      "Bu matn yaxshilanishi kerak. U juda oddiy va professional emas.";
+    setInputText(demoText);
+    setIsImproving(true);
+
+    setTimeout(() => {
+      setImprovedText(
+        "Ushbu matn professional darajada takomillashtirilishi zarur. U hozirgi holatda juda oddiy ko'rinishda bo'lib, ishbilarmonlik muhitida foydalanish uchun mos emas."
+      );
+      setShowResult(true);
+      setIsImproving(false);
+      message.info("Demo matn yaxshilash ko'rsatildi");
+    }, 2000);
+  };
+
+  const demoGenerateSong = () => {
+    setSongTopic("Sevgi");
+    setIsImproving(true);
+
+    setTimeout(() => {
+      setGeneratedSong(`Sevgi - bu hayotning eng go'zal hissi,
+Qalbimda yonib turadigan olov.
+Sendan boshqa hech kim yo'q mening dunyomda,
+Sen menga eng aziz va mukammal.
+
+Kechalar uzun, seni sog'inaman,
+Yulduzlarga qarab orzu qilaman.
+Ertaga kelsa, senga uchrashaman,
+Qalbimga to'lgan muhabbatni beraman.
+
+O sevgilim, sen mening hayotimsan,
+Sen mening umidim va kelajagim.
+Sensiz bu dunyo ma'nosiz va qorong'i,
+Sen bilan barcha orzular amalga oshi.`);
+      setRecommendedMusic(
+        "Klassik ballada uslubida, piano va skripka hamrohligida, sekin temp"
+      );
+      setShowResult(true);
+      setIsImproving(false);
+      message.info("Demo qo'shiq yaratish ko'rsatildi");
+    }, 3000);
+  };
+
+  // Event handlers
   const handleInputChange = useCallback((e) => {
     setInputText(e.target.value);
     setError(null);
     setShowResult(false);
   }, []);
 
-  // Kontent turi o'zgarishi
   const handleContentTypeChange = useCallback((value) => {
     setContentType(value);
     setError(null);
@@ -177,32 +268,40 @@ const DocumentGenerator = () => {
     setRecommendedMusic("");
   }, []);
 
-  // Til tanlash
   const handleLanguageChange = useCallback((value) => {
     setSelectedLanguage(value);
     setError(null);
   }, []);
 
-  // Alifbo tanlash
   const handleScriptChange = useCallback((value) => {
     setSelectedScript(value);
     setError(null);
   }, []);
 
-  // Uslub tanlash
   const handleStyleChange = useCallback((value) => {
     setStyleType(value);
     setError(null);
   }, []);
 
-  // Qo'shiq uslubi tanlash
   const handleSongStyleChange = useCallback((value) => {
     setSongStyle(value);
     setError(null);
   }, []);
 
-  // Matnni yaxshilash
+  // Text improvement
   const handleImproveText = useCallback(async () => {
+    // Auth check
+    if (!isAuthenticated) {
+      showAuthRequired();
+      return;
+    }
+
+    // Limit check
+    if (!canUse("documentGenerator")) {
+      showLimitExceeded();
+      return;
+    }
+
     if (!inputText.trim()) {
       message.warning(t("documentGenerator.placeholder"));
       return;
@@ -217,6 +316,9 @@ const DocumentGenerator = () => {
     setError(null);
 
     try {
+      // Use action to decrement limit
+      await useAction("documentGenerator");
+
       const response = await improveText(inputText, {
         language: selectedLanguage,
         script: selectedScript,
@@ -246,10 +348,25 @@ const DocumentGenerator = () => {
     styleType,
     improvementLevel,
     t,
+    isAuthenticated,
+    canUse,
+    useAction,
   ]);
 
-  // Qo'shiq yaratish
+  // Song generation
   const handleGenerateSong = useCallback(async () => {
+    // Auth check
+    if (!isAuthenticated) {
+      showAuthRequired();
+      return;
+    }
+
+    // Limit check
+    if (!canUse("documentGenerator")) {
+      showLimitExceeded();
+      return;
+    }
+
     if (!songTopic.trim()) {
       message.warning("Iltimos, qo'shiq mavzusini kiriting");
       return;
@@ -264,6 +381,9 @@ const DocumentGenerator = () => {
     setError(null);
 
     try {
+      // Use action to decrement limit
+      await useAction("documentGenerator");
+
       const response = await generateSong({
         topic: songTopic,
         style: songStyle,
@@ -299,9 +419,12 @@ const DocumentGenerator = () => {
     selectedScript,
     songConditions,
     t,
+    isAuthenticated,
+    canUse,
+    useAction,
   ]);
 
-  // Nusxalash
+  // Copy function
   const handleCopy = useCallback(
     async (text) => {
       if (!text.trim()) {
@@ -319,7 +442,7 @@ const DocumentGenerator = () => {
     [t]
   );
 
-  // Tozalash
+  // Clear function
   const handleClear = useCallback(() => {
     setInputText("");
     setImprovedText("");
@@ -332,7 +455,7 @@ const DocumentGenerator = () => {
     message.info(t("common.clear"));
   }, [t]);
 
-  // Yuklab olish
+  // Download function
   const handleDownload = useCallback(() => {
     const textToDownload =
       contentType === "song" ? generatedSong : improvedText;
@@ -352,6 +475,8 @@ const DocumentGenerator = () => {
     document.body.removeChild(element);
     message.success(t("common.download"));
   }, [improvedText, generatedSong, contentType, t]);
+
+  const planStatus = getPlanStatus();
 
   return (
     <div className="p-4 lg:p-6 h-full">
@@ -482,6 +607,21 @@ const DocumentGenerator = () => {
 
             <Col xs={24} sm={24} md={showScriptSelector ? 4 : 5}>
               <Space className="w-full justify-end" wrap>
+                {/* Auth status indicator */}
+                {!isAuthenticated && (
+                  <Tooltip title="Tizimga kirishingiz kerak">
+                    <LockOutlined className="text-red-500" />
+                  </Tooltip>
+                )}
+
+                {isAuthenticated &&
+                  planStatus.plan === "pro" &&
+                  planStatus.isActive && (
+                    <Tooltip title="Pro foydalanuvchi">
+                      <CrownOutlined className="text-yellow-500" />
+                    </Tooltip>
+                  )}
+
                 <Button
                   icon={<ClearOutlined />}
                   onClick={handleClear}
@@ -497,6 +637,40 @@ const DocumentGenerator = () => {
               </Space>
             </Col>
           </Row>
+
+          {/* Auth warning for non-authenticated users */}
+          {!isAuthenticated && (
+            <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
+              <Text className="text-yellow-700 dark:text-yellow-300 text-xs">
+                Bu funksiyalardan foydalanish uchun{" "}
+                <Button
+                  type="link"
+                  size="small"
+                  className="p-0 h-auto text-yellow-700"
+                  onClick={login}
+                >
+                  tizimga kiring
+                </Button>
+                {" yoki demo versiyasini sinab ko'ring."}
+              </Text>
+            </div>
+          )}
+
+          {/* Limit warning for authenticated users */}
+          {isAuthenticated && planStatus.plan === "start" && (
+            <div className="mt-3 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded">
+              <Text className="text-orange-700 dark:text-orange-300 text-xs">
+                Kunlik limit: Document generator{" "}
+                {getRemainingLimit("documentGenerator")}/3.{" "}
+                <a
+                  href="/pricing"
+                  className="text-blue-600 hover:underline ml-1"
+                >
+                  Pro rejasiga o'ting
+                </a>
+              </Text>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -528,6 +702,13 @@ const DocumentGenerator = () => {
               extra={
                 <Space>
                   <Button
+                    onClick={demoImproveText}
+                    className="bg-purple-500 text-white border-purple-500"
+                  >
+                    Demo
+                  </Button>
+
+                  <Button
                     type="primary"
                     icon={<ThunderboltOutlined />}
                     onClick={handleImproveText}
@@ -535,7 +716,16 @@ const DocumentGenerator = () => {
                     disabled={!inputText.trim()}
                     size="large"
                   >
-                    {t("documentGenerator.improve")}
+                    {isAuthenticated ? (
+                      <>
+                        {t("documentGenerator.improve")}
+                        <span className="ml-1">
+                          ({getRemainingLimit("documentGenerator")})
+                        </span>
+                      </>
+                    ) : (
+                      "Tizimga kiring"
+                    )}
                   </Button>
                 </Space>
               }
@@ -591,6 +781,13 @@ const DocumentGenerator = () => {
               extra={
                 <Space>
                   <Button
+                    onClick={demoGenerateSong}
+                    className="bg-purple-500 text-white border-purple-500"
+                  >
+                    Demo
+                  </Button>
+
+                  <Button
                     type="primary"
                     icon={<ThunderboltOutlined />}
                     onClick={handleGenerateSong}
@@ -598,7 +795,16 @@ const DocumentGenerator = () => {
                     disabled={!songTopic.trim()}
                     size="large"
                   >
-                    Qo'shiq yaratish
+                    {isAuthenticated ? (
+                      <>
+                        Qo'shiq yaratish
+                        <span className="ml-1">
+                          ({getRemainingLimit("documentGenerator")})
+                        </span>
+                      </>
+                    ) : (
+                      "Tizimga kiring"
+                    )}
                   </Button>
                 </Space>
               }
@@ -748,6 +954,49 @@ const DocumentGenerator = () => {
                 </div>
               </Card>
             </motion.div>
+          </Col>
+        )}
+
+        {/* Welcome Panel for non-authenticated users */}
+        {!showResult && !inputText && !songTopic && !isAuthenticated && (
+          <Col xs={24} lg={8}>
+            <Card className="text-center h-full">
+              <div className="space-y-4">
+                <Title level={4}>
+                  {contentType === "song"
+                    ? "Qo'shiq yaratish"
+                    : "Matn yaxshilash"}
+                </Title>
+
+                <Text className="text-gray-500">
+                  {contentType === "song"
+                    ? "Mavzu kiritib, professional qo'shiq yarating"
+                    : "Matnni professional darajada yaxshilang"}
+                </Text>
+
+                <div className="text-xs text-gray-400 space-y-1">
+                  <div>• Professional uslub</div>
+                  <div>• Grammatik to'g'irlash</div>
+                  <div>• Mazmunni boyitish</div>
+                  {contentType === "song" && <div>• Musiqa tavsiyalari</div>}
+                </div>
+
+                <div className="mt-4 p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                  <Text className="text-sm text-yellow-800 dark:text-yellow-200">
+                    Bu funksiyadan foydalanish uchun{" "}
+                    <Button
+                      type="link"
+                      size="small"
+                      className="p-0 h-auto"
+                      onClick={login}
+                    >
+                      tizimga kiring
+                    </Button>
+                    {" yoki demo versiyasini sinab ko'ring"}
+                  </Text>
+                </div>
+              </div>
+            </Card>
           </Col>
         )}
       </Row>

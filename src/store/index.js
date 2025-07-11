@@ -1,10 +1,10 @@
-// src/store/index.js - TUZATILGAN
+// src/store/index.js - Import nomini tekshiring
 import { configureStore } from "@reduxjs/toolkit";
 import spellCheckReducer from "./slices/spellCheckSlice";
 import transliterateReducer from "./slices/transliterateSlice";
 import uiReducer from "./slices/uiSlice";
 import wordsReducer from "./slices/wordsSlice";
-import authReducer from "./slices/AuthSlice"; // To'g'ri import
+import authReducer from "./slices/authSlice"; // Nomi to'g'ri bo'lishi kerak
 
 export const store = configureStore({
   reducer: {
