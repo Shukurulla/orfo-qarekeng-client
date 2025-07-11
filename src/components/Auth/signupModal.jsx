@@ -1,4 +1,3 @@
-// src/components/Auth/SignupModal.jsx
 import React, { useState } from "react";
 import { Modal, Form, Input, Button, Alert, Divider, Steps } from "antd";
 import {
@@ -31,29 +30,67 @@ const SignupModal = () => {
     setCurrentStep(0);
   };
 
-  const handleSubmit = async (values) => {
-    const { firstName, lastName, phoneNumber, password } = values;
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields([
+        "firstName",
+        "lastName",
+        "phoneNumber",
+        "password",
+        "confirmPassword",
+      ]);
+      console.log("Form values:", values);
 
-    // Format phone number
-    const formattedPhone = authUtils.formatPhoneNumber(phoneNumber);
+      const { firstName, lastName, phoneNumber, password, confirmPassword } =
+        values;
 
-    const result = await dispatch(
-      signup({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phoneNumber: formattedPhone,
-        password,
-        confirmPassword: values.confirmPassword,
-      })
-    );
+      if (!phoneNumber) {
+        form.setFields([
+          {
+            name: "phoneNumber",
+            errors: ["Telefon raqami kiritilishi shart"],
+          },
+        ]);
+        return;
+      }
 
-    if (signup.fulfilled.match(result)) {
-      setCurrentStep(2); // Success step
-      setTimeout(() => {
-        form.resetFields();
-        setCurrentStep(0);
-        // Modal automatically closes via state
-      }, 2000);
+      const formattedPhone = authUtils.formatPhoneNumber(phoneNumber);
+
+      const result = await dispatch(
+        signup({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phoneNumber: formattedPhone,
+          password,
+          confirmPassword,
+        })
+      );
+
+      if (signup.fulfilled.match(result)) {
+        setCurrentStep(2);
+        setTimeout(() => {
+          form.resetFields();
+          setCurrentStep(0);
+          dispatch(hideSignupModal());
+        }, 2000);
+      } else {
+        form.setFields([
+          {
+            name: "phoneNumber",
+            errors: [
+              result.error?.message || "Ro'yxatdan o'tishda xatolik yuz berdi",
+            ],
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      form.setFields([
+        {
+          name: "phoneNumber",
+          errors: ["Server xatosi: Iltimos, qayta urinib ko'ring"],
+        },
+      ]);
     }
   };
 

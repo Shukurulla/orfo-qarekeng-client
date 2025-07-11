@@ -1,10 +1,10 @@
-// src/store/index.js - YANGILANGAN
+// src/store/index.js - TUZATILGAN
 import { configureStore } from "@reduxjs/toolkit";
 import spellCheckReducer from "./slices/spellCheckSlice";
 import transliterateReducer from "./slices/transliterateSlice";
 import uiReducer from "./slices/uiSlice";
 import wordsReducer from "./slices/wordsSlice";
-import authReducer from "./slices/AuthSlice"; // AUTH SLICE QO'SHILDI
+import authReducer from "./slices/AuthSlice"; // To'g'ri import
 
 export const store = configureStore({
   reducer: {
@@ -12,7 +12,7 @@ export const store = configureStore({
     transliterate: transliterateReducer,
     ui: uiReducer,
     words: wordsReducer,
-    auth: authReducer, // AUTH REDUCER QO'SHILDI
+    auth: authReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

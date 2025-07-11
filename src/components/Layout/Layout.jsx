@@ -1,4 +1,4 @@
-// src/components/Layout/Layout.jsx
+// src/components/Layout/Layout.jsx - Auth bilan yangilangan
 
 import React, { useState, useEffect } from "react";
 import {
@@ -9,6 +9,10 @@ import {
   Switch,
   Tooltip,
   Space,
+  Dropdown,
+  Avatar,
+  Badge,
+  Divider,
 } from "antd";
 import {
   MenuOutlined,
@@ -20,6 +24,13 @@ import {
   TranslationOutlined,
   CheckCircleOutlined,
   FileTextOutlined,
+  UserOutlined,
+  LoginOutlined,
+  LogoutOutlined,
+  HistoryOutlined,
+  SettingOutlined,
+  CrownOutlined,
+  BellOutlined,
 } from "@ant-design/icons";
 import { useAppSelector, useAppDispatch } from "@/hooks/redux";
 import {
@@ -28,6 +39,13 @@ import {
   setSidebarOpen,
   openModal,
 } from "@/store/slices/uiSlice";
+import {
+  showLoginModal,
+  showSignupModal,
+  showProfileModal,
+  logoutLocal,
+  authUtils,
+} from "@/store/slices/AuthSlice";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -44,6 +62,9 @@ const Layout = ({ children }) => {
   const { theme, activeTab, sidebarOpen, device } = useAppSelector(
     (state) => state.ui
   );
+
+  // Auth state
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
 
   const isDark = theme === "dark";
   const { isMobile, isTablet } = device;
@@ -64,6 +85,11 @@ const Layout = ({ children }) => {
       document.documentElement.classList.remove("dark");
     }
   }, [isDark]);
+
+  // Get user plan status
+  const planStatus = user
+    ? authUtils.getPlanStatus(user)
+    : { plan: "start", isActive: false };
 
   // Menu items
   const menuItems = [
@@ -122,12 +148,74 @@ const Layout = ({ children }) => {
     },
   ];
 
+  // Auth menu items - QO'SHILDI
+  const authMenuItems = isAuthenticated
+    ? [
+        {
+          type: "divider",
+        },
+        {
+          key: "history",
+          icon: <HistoryOutlined />,
+          label: "Tarix",
+          onClick: () => {
+            navigate("/history");
+            if (isMobile) dispatch(setSidebarOpen(false));
+          },
+        },
+      ]
+    : [];
+
+  // Combined menu items
+  const allMenuItems = [...menuItems, ...authMenuItems];
+
+  // Profile dropdown menu
+  const profileMenuItems = [
+    {
+      key: "profile",
+      icon: <UserOutlined />,
+      label: "Profil",
+      onClick: () => dispatch(showProfileModal()),
+    },
+    {
+      key: "history",
+      icon: <HistoryOutlined />,
+      label: "Tarix",
+      onClick: () => navigate("/history"),
+    },
+    {
+      type: "divider",
+    },
+    {
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Chiqish",
+      onClick: () => dispatch(logoutLocal()),
+      danger: true,
+    },
+  ];
+
+  // User display name
+  const getUserDisplayName = () => {
+    if (!user) return "";
+    return `${user.firstName} ${user.lastName}`;
+  };
+
+  // User avatar
+  const getUserAvatar = () => {
+    if (user?.avatar) {
+      return user.avatar;
+    }
+    return user?.firstName?.charAt(0)?.toUpperCase() || "U";
+  };
+
   // Active menu key based on current route and tab
   const getActiveKey = () => {
     if (location.pathname === "/about") return "about";
     if (location.pathname === "/spellcheck") return "spellcheck";
     if (location.pathname === "/translate") return "translate";
     if (location.pathname === "/document") return "document";
+    if (location.pathname === "/history") return "history";
     if (location.pathname === "/" && activeTab === "spellcheck")
       return "spellcheck";
     if (location.pathname === "/" && activeTab === "translate")
@@ -143,6 +231,7 @@ const Layout = ({ children }) => {
     if (location.pathname === "/spellcheck") return t("menu.spellCheck");
     if (location.pathname === "/translate") return t("menu.transliteration");
     if (location.pathname === "/document") return t("menu.documentGenerator");
+    if (location.pathname === "/history") return "Tarix";
     if (location.pathname === "/" && activeTab === "spellcheck")
       return t("menu.spellCheck");
     if (location.pathname === "/" && activeTab === "translate")
@@ -183,17 +272,31 @@ const Layout = ({ children }) => {
           selectedKeys={[getActiveKey()]}
           style={{ border: "none" }}
           className="bg-transparent"
-          items={menuItems}
+          items={allMenuItems}
           theme={isDark ? "dark" : "light"}
         />
       </div>
 
-      {/* Language switcher */}
-      {/* {!collapsed && (
-        <div className="px-4 pb-2 border-t border-gray-200 dark:border-gray-700">
-          <LanguageSwitcher className="py-3" />
+      {/* Auth buttons for non-authenticated users - QO'SHILDI */}
+      {!isAuthenticated && !collapsed && (
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+          <Button
+            type="primary"
+            icon={<LoginOutlined />}
+            onClick={() => dispatch(showLoginModal())}
+            block
+          >
+            Kirish
+          </Button>
+          <Button
+            icon={<UserOutlined />}
+            onClick={() => dispatch(showSignupModal())}
+            block
+          >
+            Ro'yxatdan o'tish
+          </Button>
         </div>
-      )} */}
+      )}
 
       {/* Theme toggle */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
@@ -275,9 +378,67 @@ const Layout = ({ children }) => {
                 </h2>
               </div>
             </div>
+
             <div className="flex items-center space-x-3">
               {/* Language switcher for desktop */}
               {!isMobile && <LanguageSwitcher />}
+
+              {/* Notifications - placeholder */}
+              {isAuthenticated && (
+                <Tooltip title="Bildirishnomalar">
+                  <Badge count={0} size="small">
+                    <Button
+                      type="text"
+                      icon={<BellOutlined />}
+                      className="text-gray-600 dark:text-gray-300"
+                    />
+                  </Badge>
+                </Tooltip>
+              )}
+
+              {/* User Profile Dropdown - QO'SHILDI */}
+              {isAuthenticated && user ? (
+                <Dropdown
+                  menu={{ items: profileMenuItems }}
+                  placement="bottomRight"
+                  trigger={["click"]}
+                >
+                  <Button
+                    type="text"
+                    className="flex items-center space-x-2 px-2"
+                  >
+                    <Avatar size="small" className="bg-blue-500">
+                      {getUserAvatar()}
+                    </Avatar>
+                    {!isMobile && (
+                      <span className="text-gray-900 dark:text-white">
+                        {user.firstName}
+                      </span>
+                    )}
+                    {planStatus.plan === "pro" && planStatus.isActive && (
+                      <CrownOutlined className="text-yellow-500" />
+                    )}
+                  </Button>
+                </Dropdown>
+              ) : (
+                /* Auth buttons for header - QO'SHILDI */
+                <Space>
+                  <Button
+                    type="text"
+                    onClick={() => dispatch(showLoginModal())}
+                    className="text-gray-600 dark:text-gray-300"
+                  >
+                    Kirish
+                  </Button>
+                  <Button
+                    type="primary"
+                    size="small"
+                    onClick={() => dispatch(showSignupModal())}
+                  >
+                    Ro'yxatdan o'tish
+                  </Button>
+                </Space>
+              )}
 
               {/* Theme toggle for mobile */}
               {isMobile && (

@@ -1,5 +1,10 @@
-// src/store/slices/authSlice.js - TO'LIQ FAYL
+// src/store/slices/authSlice.js - TO'LIQ TUZATILGAN VERSIYA
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+
+// API base URL
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://ofro-qarekeng-server.vercel.app/api";
 
 // Utility functions
 const authUtils = {
@@ -23,6 +28,10 @@ const authUtils = {
   },
 
   formatPhoneNumber: (phone) => {
+    if (!phone || typeof phone !== "string") {
+      return ""; // Return empty string for invalid phone number
+    }
+
     let cleaned = phone.replace(/\D/g, "");
 
     if (cleaned.startsWith("998")) {
@@ -62,7 +71,7 @@ const authUtils = {
       user.planExpiry &&
       new Date(user.planExpiry) > new Date()
     ) {
-      return "Cheksiz";
+      return "∞";
     }
 
     // Start plan uchun qolgan limit
@@ -91,10 +100,9 @@ const authUtils = {
   },
 };
 
-// Mock API functions (siz haqiqiy authService.js yaratguncha)
+// Mock API functions
 const mockAPI = {
   signup: async (userData) => {
-    // Mock signup - haqiqiy API ishlatguncha
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const user = {
@@ -125,7 +133,6 @@ const mockAPI = {
   },
 
   login: async (credentials) => {
-    // Mock login
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     if (
@@ -182,6 +189,86 @@ const mockAPI = {
     return {
       success: false,
       error: "User not found",
+    };
+  },
+
+  updateMe: async (userData) => {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const currentUser = authUtils.getCurrentUser();
+    if (!currentUser) {
+      return {
+        success: false,
+        error: "User not found",
+      };
+    }
+
+    const updatedUser = {
+      ...currentUser,
+      ...userData,
+      updatedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+
+    return {
+      success: true,
+      data: { user: updatedUser },
+    };
+  },
+
+  updatePassword: async (passwordData) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Mock password validation
+    if (passwordData.passwordCurrent !== "password123") {
+      return {
+        success: false,
+        error: "Joriy parol noto'g'ri",
+      };
+    }
+
+    if (passwordData.password !== passwordData.passwordConfirm) {
+      return {
+        success: false,
+        error: "Parollar mos kelmaydi",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Parol muvaffaqiyatli yangilandi",
+    };
+  },
+
+  getStats: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    const currentUser = authUtils.getCurrentUser();
+    if (!currentUser) {
+      return {
+        success: false,
+        error: "User not found",
+      };
+    }
+
+    // Mock statistics
+    const mockStats = {
+      totalRequests: 45,
+      successRate: 0.89,
+      actionStats: [
+        { action: "spellCheck", count: 15 },
+        { action: "correctText", count: 8 },
+        { action: "transliterate", count: 12 },
+        { action: "documentGenerator", count: 10 },
+      ],
+      dailyUsage: currentUser.dailyUsage,
+      planInfo: authUtils.getPlanStatus(currentUser),
+    };
+
+    return {
+      success: true,
+      data: mockStats,
     };
   },
 };
@@ -247,6 +334,54 @@ export const getMe = createAsyncThunk(
   }
 );
 
+// QO'SHILGAN: updateMe thunk
+export const updateMe = createAsyncThunk(
+  "auth/updateMe",
+  async (userData, { rejectWithValue }) => {
+    try {
+      const result = await mockAPI.updateMe(userData);
+      if (!result.success) {
+        return rejectWithValue(result.error);
+      }
+      return result.data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// QO'SHILGAN: updatePassword thunk
+export const updatePassword = createAsyncThunk(
+  "auth/updatePassword",
+  async (passwordData, { rejectWithValue }) => {
+    try {
+      const result = await mockAPI.updatePassword(passwordData);
+      if (!result.success) {
+        return rejectWithValue(result.error);
+      }
+      return result;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// QO'SHILGAN: getStats thunk
+export const getStats = createAsyncThunk(
+  "auth/getStats",
+  async (_, { rejectWithValue }) => {
+    try {
+      const result = await mockAPI.getStats();
+      if (!result.success) {
+        return rejectWithValue(result.error);
+      }
+      return result.data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 const initialState = {
   // User ma'lumotlari
   user: authUtils.getCurrentUser(),
@@ -266,7 +401,7 @@ const initialState = {
   updateError: null,
   passwordError: null,
 
-  // Stats
+  // Stats - QO'SHILGAN
   stats: null,
   isLoadingStats: false,
   statsError: null,
@@ -386,7 +521,6 @@ const authSlice = createSlice({
       })
       .addCase(logout.rejected, (state) => {
         state.isLoading = false;
-        // Xato bo'lsa ham logout qilish
         state.user = null;
         state.isAuthenticated = false;
         state.stats = null;
@@ -408,7 +542,6 @@ const authSlice = createSlice({
       .addCase(getMe.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
-        // Token yaroqsiz bo'lsa logout
         if (
           action.payload?.includes("401") ||
           action.payload?.includes("token")
@@ -418,6 +551,51 @@ const authSlice = createSlice({
           localStorage.removeItem("token");
           localStorage.removeItem("user");
         }
+      });
+
+    // Update me - QO'SHILGAN
+    builder
+      .addCase(updateMe.pending, (state) => {
+        state.isUpdating = true;
+        state.updateError = null;
+      })
+      .addCase(updateMe.fulfilled, (state, action) => {
+        state.isUpdating = false;
+        state.user = action.payload.user;
+        localStorage.setItem("user", JSON.stringify(action.payload.user));
+      })
+      .addCase(updateMe.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.updateError = action.payload;
+      });
+
+    // Update password - QO'SHILGAN
+    builder
+      .addCase(updatePassword.pending, (state) => {
+        state.isUpdatingPassword = true;
+        state.passwordError = null;
+      })
+      .addCase(updatePassword.fulfilled, (state) => {
+        state.isUpdatingPassword = false;
+      })
+      .addCase(updatePassword.rejected, (state, action) => {
+        state.isUpdatingPassword = false;
+        state.passwordError = action.payload;
+      });
+
+    // Get stats - QO'SHILGAN
+    builder
+      .addCase(getStats.pending, (state) => {
+        state.isLoadingStats = true;
+        state.statsError = null;
+      })
+      .addCase(getStats.fulfilled, (state, action) => {
+        state.isLoadingStats = false;
+        state.stats = action.payload;
+      })
+      .addCase(getStats.rejected, (state, action) => {
+        state.isLoadingStats = false;
+        state.statsError = action.payload;
       });
   },
 });

@@ -1,7 +1,7 @@
 // src/components/Auth/AuthModal.jsx
 import React, { useState } from "react";
 import { Modal } from "antd";
-import LoginForm, { RegisterForm } from "./LoginForm";
+import LoginForm, { RegisterForm } from "./LoginModal";
 
 const AuthModal = ({ visible, onClose, defaultTab = "login" }) => {
   const [activeTab, setActiveTab] = useState(defaultTab);

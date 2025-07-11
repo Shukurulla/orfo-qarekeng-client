@@ -1,4 +1,4 @@
-// src/components/Auth/ProfileModal.jsx
+// src/components/Auth/ProfileModal.jsx - TUZATILGAN VERSIYA
 import React, { useState } from "react";
 import {
   Modal,
@@ -26,9 +26,9 @@ import {
   updateMe,
   updatePassword,
   hideProfileModal,
-  getStats,
-} from "@/store/slices/authSlice";
-import { authUtils } from "@/utils/authService";
+  getStats, // QO'SHILGAN
+  authUtils,
+} from "@/store/slices/AuthSlice";
 
 const { TabPane } = Tabs;
 
@@ -69,7 +69,7 @@ const ProfileModal = () => {
   const handleUpdateProfile = async (values) => {
     const result = await dispatch(updateMe(values));
     if (updateMe.fulfilled.match(result)) {
-      profileForm.resetFields();
+      // Form reset etish shart emas, chunki ma'lumotlar saqlanadi
     }
   };
 
@@ -258,7 +258,7 @@ const ProfileModal = () => {
                 <div className="mt-2 text-sm text-gray-600">
                   <CalendarOutlined className="mr-1" />
                   Muddat:{" "}
-                  {new Date(planStatus.expiry).toLocaleDateString("uz-UZ")}(
+                  {new Date(planStatus.expiry).toLocaleDateString("uz-UZ")} (
                   {planStatus.daysLeft} kun qoldi)
                 </div>
               )}

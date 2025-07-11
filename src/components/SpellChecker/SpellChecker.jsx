@@ -1,4 +1,4 @@
-// src/components/SpellChecker/SpellChecker.jsx - IMPORT FIX
+// src/components/SpellChecker/SpellChecker.jsx - To'liq tuzatilgan versiya
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
@@ -18,7 +18,7 @@ import {
   Progress,
   Select,
   Modal,
-  Input, // QO'SHILDI
+  Input,
 } from "antd";
 import {
   CheckOutlined,
@@ -29,7 +29,6 @@ import {
   BookOutlined,
   BulbOutlined,
   GlobalOutlined,
-  FontSizeOutlined,
   EditOutlined,
   LockOutlined,
   CrownOutlined,
@@ -42,7 +41,7 @@ import {
 } from "@/utils/OrfoAIService";
 import { useTranslation } from "react-i18next";
 import { useAppSelector, useAppDispatch } from "@/hooks/redux";
-import { showLoginModal, authUtils } from "@/store/slices/authSlice"; // authUtils import qilindi
+import { showLoginModal } from "@/store/slices/AuthSlice";
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -50,14 +49,13 @@ const { TextArea } = Input;
 
 const SpellChecker = () => {
   const textAreaRef = useRef(null);
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
-  // Auth state - xavfsiz destructuring
-  const authState = useAppSelector((state) => state.auth || {});
-  const { user = null, isAuthenticated = false } = authState;
+  // Redux state
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth || {});
 
-  // State
+  // Component state
   const [originalText, setOriginalText] = useState("");
   const [results, setResults] = useState([]);
   const [mistakes, setMistakes] = useState([]);
@@ -67,7 +65,6 @@ const SpellChecker = () => {
   const [error, setError] = useState(null);
   const [hasChecked, setHasChecked] = useState(false);
   const [correctionInProgress, setCorrectionInProgress] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
 
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -115,23 +112,66 @@ const SpellChecker = () => {
     },
   ];
 
+  // Auth utility functions
+  const checkDailyLimit = (action) => {
+    if (!user || !user.dailyUsage) return true;
+
+    // Pro plan uchun limit yo'q
+    if (
+      user.plan === "pro" &&
+      user.planExpiry &&
+      new Date(user.planExpiry) > new Date()
+    ) {
+      return true;
+    }
+
+    // Start plan uchun limit tekshirish
+    const usage = user.dailyUsage[action] || 0;
+    return usage < 3;
+  };
+
+  const getRemainingLimit = (action) => {
+    if (!user || !user.dailyUsage) return 3;
+
+    // Pro plan uchun cheksiz
+    if (
+      user.plan === "pro" &&
+      user.planExpiry &&
+      new Date(user.planExpiry) > new Date()
+    ) {
+      return "∞";
+    }
+
+    // Start plan uchun qolgan limit
+    const usage = user.dailyUsage[action] || 0;
+    return Math.max(0, 3 - usage);
+  };
+
+  const getPlanStatus = () => {
+    if (!user) return { plan: "start", isActive: false };
+
+    const isPro =
+      user.plan === "pro" &&
+      user.planExpiry &&
+      new Date(user.planExpiry) > new Date();
+
+    return {
+      plan: user.plan,
+      isActive: isPro,
+      expiry: user.planExpiry,
+      daysLeft: isPro
+        ? Math.ceil(
+            (new Date(user.planExpiry) - new Date()) / (1000 * 60 * 60 * 24)
+          )
+        : 0,
+    };
+  };
+
   // Get current language info
   const getCurrentLanguageInfo = () => {
     const lang = languageOptions.find((l) => l.value === selectedLanguage);
     const script = scriptOptions.find((s) => s.value === selectedScript);
     return { lang, script };
-  };
-
-  // Check if user can use feature
-  const canUseFeature = (action) => {
-    if (!isAuthenticated) return false;
-    return authUtils.checkDailyLimit(user, action);
-  };
-
-  // Get remaining limit
-  const getRemainingLimit = (action) => {
-    if (!isAuthenticated) return 0;
-    return authUtils.getRemainingLimit(user, action);
   };
 
   // Show auth required modal
@@ -167,22 +207,18 @@ const SpellChecker = () => {
       okText: "Pro rejasi",
       cancelText: "Yopish",
       onOk: () => {
-        // Navigate to pricing page
         window.open("/pricing", "_blank");
       },
     });
   };
 
-  // DEMO TEST DATA - faqat testing uchun
+  // DEMO TEST DATA
   const demoTest = () => {
-    setOriginalText(
-      "Bu yerda imloviy xattalar bor. Menimcha bu matn to'g'rilanish kerek."
-    );
-    setDisplayText(
-      "Bu yerda imloviy xattalar bor. Menimcha bu matn to'g'rilanish kerek."
-    );
+    const demoText =
+      "Bu yerda imloviy xattalar bor. Menimcha bu matn to'g'rilanish kerek.";
+    setOriginalText(demoText);
+    setDisplayText(demoText);
 
-    // Demo results
     setTimeout(() => {
       const demoResults = [
         {
@@ -238,7 +274,7 @@ const SpellChecker = () => {
     }, 1000);
   };
 
-  // Matn o'zgarishi
+  // Event handlers
   const handleTextChange = useCallback((e) => {
     const newText = e.target.value;
     setOriginalText(newText);
@@ -250,10 +286,8 @@ const SpellChecker = () => {
     setStatistics(null);
   }, []);
 
-  // Edit mode toggle
   const handleEditToggle = useCallback(() => {
     if (isEditMode) {
-      // Save changes
       setOriginalText(displayText);
       setHasChecked(false);
       setResults([]);
@@ -263,7 +297,6 @@ const SpellChecker = () => {
     setIsEditMode(!isEditMode);
   }, [isEditMode, displayText]);
 
-  // Language change handler
   const handleLanguageChange = useCallback((value) => {
     setSelectedLanguage(value);
     setHasChecked(false);
@@ -272,16 +305,13 @@ const SpellChecker = () => {
     setMistakes([]);
     setStatistics(null);
 
-    // Auto-detect appropriate script for language
     if (value === "ru") {
       setSelectedScript("cyrillic");
     } else if (value === "uz") {
-      setSelectedScript("latin"); // O'zbek tili uchun lotin default
+      setSelectedScript("latin");
     }
-    // Qoraqalpoq uchun user tanlashi mumkin
   }, []);
 
-  // Script change handler
   const handleScriptChange = useCallback((value) => {
     setSelectedScript(value);
     setHasChecked(false);
@@ -291,7 +321,7 @@ const SpellChecker = () => {
     setStatistics(null);
   }, []);
 
-  // Imlo tekshirish
+  // Main spell check function
   const handleCheck = useCallback(async () => {
     // Auth check
     if (!isAuthenticated) {
@@ -300,18 +330,18 @@ const SpellChecker = () => {
     }
 
     // Limit check
-    if (!canUseFeature("spellCheck")) {
+    if (!checkDailyLimit("spellCheck")) {
       showLimitExceeded("spellCheck");
       return;
     }
 
     if (!originalText.trim()) {
-      message.warning(t("spellChecker.errors.empty"));
+      message.warning("Tekshirish uchun matn kiriting");
       return;
     }
 
     if (originalText.trim().length < 5) {
-      message.warning(t("spellChecker.errors.tooShort"));
+      message.warning("Matn juda qisqa, kamida 5 ta harf kiriting");
       return;
     }
 
@@ -332,7 +362,6 @@ const SpellChecker = () => {
         setStatistics(stats);
         setHasChecked(true);
 
-        // Xato so'zlarni ajratib olish
         const errorWords = spellResults
           .filter((result) => !result.isCorrect)
           .map((result) => ({
@@ -340,7 +369,7 @@ const SpellChecker = () => {
             similarWords:
               result.suggestions?.map((suggestion, index) => ({
                 word: suggestion.word || suggestion,
-                similarity: suggestion.confidence || 95 - index * 5, // Default confidence
+                similarity: suggestion.confidence || 95 - index * 5,
               })) || [],
           }));
 
@@ -349,49 +378,39 @@ const SpellChecker = () => {
         const { lang } = getCurrentLanguageInfo();
 
         if (errorWords.length === 0) {
-          message.success(`${lang.label}da xato topilmadi`);
+          message.success(`${lang?.label || ""}da xato topilmadi`);
         } else {
           message.info(
-            `${lang.label}da ${errorWords.length} ta imlo xatosi topildi`
+            `${lang?.label || ""}da ${errorWords.length} ta imlo xatosi topildi`
           );
         }
       } else {
         setError(response.error);
-        message.error(t("spellChecker.errors.unknown"));
+        message.error("Tekshirishda xato yuz berdi");
       }
     } catch (err) {
-      const errorMsg = err.message || t("spellChecker.errors.unknown");
-
+      const errorMsg = err.message || "Noma'lum xato yuz berdi";
       setError(errorMsg);
       message.error(errorMsg);
     } finally {
       setIsChecking(false);
     }
-  }, [
-    originalText,
-    selectedLanguage,
-    selectedScript,
-    t,
-    isAuthenticated,
-    user,
-  ]);
+  }, [originalText, selectedLanguage, selectedScript, isAuthenticated]);
 
-  // Avtomatik to'g'irlash
+  // Auto correct function
   const handleAutoCorrect = useCallback(async () => {
-    // Auth check
     if (!isAuthenticated) {
       showAuthRequired();
       return;
     }
 
-    // Limit check
-    if (!canUseFeature("correctText")) {
+    if (!checkDailyLimit("correctText")) {
       showLimitExceeded("correctText");
       return;
     }
 
     if (!originalText.trim()) {
-      message.warning(t("spellChecker.errors.empty"));
+      message.warning("To'g'irlash uchun matn kiriting");
       return;
     }
 
@@ -416,38 +435,29 @@ const SpellChecker = () => {
           setMistakes([]);
           setStatistics(null);
 
-          const { lang } = getCurrentLanguageInfo();
-          message.success(t("common.success"));
+          message.success("Matn muvaffaqiyatli to'g'irlandi");
 
-          // Auto-check after correction
           setTimeout(() => {
             handleAutoCheckAfterCorrection(correctedText);
           }, 1000);
         } else {
-          message.info(t("spellChecker.suggestions.noSuggestions"));
+          message.info("Matnda o'zgartirish kerak bo'lgan joy topilmadi");
         }
       } else {
         setError(response.error);
         message.error(response.error);
       }
     } catch (err) {
-      const errorMsg = err.message || t("spellChecker.errors.unknown");
+      const errorMsg = err.message || "To'g'irlashda xato yuz berdi";
       setError(errorMsg);
       message.error(errorMsg);
     } finally {
       setIsCorrecting(false);
       setCorrectionInProgress(false);
     }
-  }, [
-    originalText,
-    selectedLanguage,
-    selectedScript,
-    t,
-    isAuthenticated,
-    user,
-  ]);
+  }, [originalText, selectedLanguage, selectedScript, isAuthenticated]);
 
-  // To'g'irlashdan keyin avtomatik tekshirish
+  // Auto check after correction
   const handleAutoCheckAfterCorrection = useCallback(
     async (text) => {
       try {
@@ -463,17 +473,17 @@ const SpellChecker = () => {
           const errorCount =
             response.data.results?.filter((r) => !r.isCorrect).length || 0;
           if (errorCount === 0) {
-            message.success(t("common.success"));
+            message.success("Barcha xatolar to'g'irlandi");
           }
         }
       } catch (error) {
         console.error("Auto-check error:", error);
       }
     },
-    [selectedLanguage, selectedScript, t]
+    [selectedLanguage, selectedScript]
   );
 
-  // Tozalash
+  // Clear function
   const handleClear = useCallback(() => {
     setOriginalText("");
     setDisplayText("");
@@ -487,16 +497,15 @@ const SpellChecker = () => {
     if (textAreaRef.current) {
       textAreaRef.current.focus();
     }
-    message.info(t("common.clear"));
-  }, [t]);
+    message.info("Tozalandi");
+  }, []);
 
-  // So'zni almashtirish
+  // Replace word function
   const handleReplaceWord = useCallback(
     (mistakeWord, replacement) => {
-      // Aniq so'zni topish uchun word boundary ishlatish
       const regex = new RegExp(
         `\\b${mistakeWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
-        "gi" // case-insensitive qo'shildi
+        "gi"
       );
       const newText = originalText.replace(regex, replacement);
       setOriginalText(newText);
@@ -512,20 +521,18 @@ const SpellChecker = () => {
     [originalText]
   );
 
-  // Tekshirilgan matnni render qilish
+  // Render checked text with highlighting
   const renderCheckedText = useCallback(() => {
     if (!originalText || !mistakes.length) {
       return originalText;
     }
 
-    // Xato so'zlarning ro'yxatini yaratish
     const errorWords = new Set();
     mistakes.forEach((mistake) => {
       errorWords.add(mistake.mistakeWord.toLowerCase().trim());
     });
 
-    // Matnni so'zlar bo'yicha ajratish
-    const words = originalText.split(/(\s+)/); // Oraliq bo'shliqlarni ham saqlash
+    const words = originalText.split(/(\s+)/);
 
     return words.map((word, index) => {
       const cleanWord = word
@@ -534,7 +541,6 @@ const SpellChecker = () => {
         .replace(/[.,!?;:"'()]/g, "");
 
       if (errorWords.has(cleanWord) && word.trim()) {
-        // Xato so'z - qizil tagiga chiziq bilan
         return (
           <span
             key={index}
@@ -555,13 +561,12 @@ const SpellChecker = () => {
           </span>
         );
       } else {
-        // Oddiy so'z yoki bo'shliq
         return <span key={index}>{word}</span>;
       }
     });
   }, [originalText, mistakes]);
 
-  // Tekshirilgan matndagi so'zga click qilish
+  // Handle checked text click
   const handleCheckedTextClick = useCallback(
     (event) => {
       const target = event.target;
@@ -585,11 +590,11 @@ const SpellChecker = () => {
             handleReplaceWord(mistake.mistakeWord, suggestions[0].word);
           }
         } else {
-          message.info(t("spellChecker.suggestions.noSuggestions"));
+          message.info("Bu so'z uchun takliflar topilmadi");
         }
       }
     },
-    [mistakes, handleReplaceWord, t]
+    [mistakes, handleReplaceWord]
   );
 
   // Initialize display text
@@ -597,26 +602,26 @@ const SpellChecker = () => {
     setDisplayText(originalText);
   }, [originalText]);
 
+  // Get language and script info
   const { lang, script } = getCurrentLanguageInfo();
-
-  // Alifbo ko'rsatilishini tekshirish
   const showScriptSelector =
     selectedLanguage === "uz" || selectedLanguage === "kaa";
+  const planStatus = getPlanStatus();
 
   return (
     <div className="p-4 lg:p-6 h-full">
       {/* Header Controls */}
       <div className="mb-6">
         <Card size="small" className="shadow-sm">
-          <Row gutter={[16, 16]} className="justify-between" align="middle">
+          <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={6} md={5}>
-              <Space className="">
+              <Space className="w-full">
                 <GlobalOutlined className="text-blue-500" />
                 <Select
                   value={selectedLanguage}
                   onChange={handleLanguageChange}
                   className="w-full min-w-[150px]"
-                  placeholder={t("common.language")}
+                  placeholder="Tilni tanlang"
                 >
                   {languageOptions.map((option) => (
                     <Option
@@ -640,8 +645,8 @@ const SpellChecker = () => {
                   value={selectedScript}
                   onChange={handleScriptChange}
                   className="w-full"
-                  placeholder={t("language.latin")}
-                  disabled={selectedLanguage === "ru"} // Rus tili uchun faqat kirill
+                  placeholder="Alifbo"
+                  disabled={selectedLanguage === "ru"}
                 >
                   {scriptOptions.map((option) => (
                     <Option
@@ -659,7 +664,7 @@ const SpellChecker = () => {
               </Col>
             )}
 
-            <Col xs={24} sm={8} md={14}>
+            <Col xs={24} sm={12} md={14}>
               <div className="w-full flex items-center gap-2">
                 {/* Auth status indicator */}
                 {!isAuthenticated && (
@@ -668,11 +673,13 @@ const SpellChecker = () => {
                   </Tooltip>
                 )}
 
-                {isAuthenticated && user?.plan === "pro" && (
-                  <Tooltip title="Pro foydalanuvchi">
-                    <CrownOutlined className="text-yellow-500" />
-                  </Tooltip>
-                )}
+                {isAuthenticated &&
+                  planStatus.plan === "pro" &&
+                  planStatus.isActive && (
+                    <Tooltip title="Pro foydalanuvchi">
+                      <CrownOutlined className="text-yellow-500" />
+                    </Tooltip>
+                  )}
 
                 <Button
                   type="primary"
@@ -682,7 +689,7 @@ const SpellChecker = () => {
                   disabled={!originalText.trim() || correctionInProgress}
                   size="large"
                 >
-                  {t("spellChecker.checkWithLanguage")}
+                  Tekshirish
                   {isAuthenticated && (
                     <span className="ml-1">
                       ({getRemainingLimit("spellCheck")})
@@ -695,10 +702,9 @@ const SpellChecker = () => {
                   onClick={handleAutoCorrect}
                   loading={isCorrecting}
                   disabled={!originalText.trim() || isChecking}
-                  type="default"
                   className="bg-green-500 text-white border-green-500 hover:bg-green-600"
                 >
-                  {t("spellChecker.autoCorrect")}
+                  To'g'irlash
                   {isAuthenticated && (
                     <span className="ml-1">
                       ({getRemainingLimit("correctText")})
@@ -711,10 +717,9 @@ const SpellChecker = () => {
                   onClick={handleClear}
                   disabled={!originalText.trim()}
                 >
-                  {t("common.clear")}
+                  Tozalash
                 </Button>
 
-                {/* DEMO BUTTON - faqat testing uchun */}
                 <Button
                   onClick={demoTest}
                   className="bg-purple-500 text-white border-purple-500"
@@ -726,11 +731,11 @@ const SpellChecker = () => {
           </Row>
 
           {/* Limit warning */}
-          {isAuthenticated && user?.plan === "start" && (
+          {isAuthenticated && planStatus.plan === "start" && (
             <div className="mt-3 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded">
               <Text className="text-orange-700 dark:text-orange-300 text-xs">
-                Kunlik limit: Imlo tekshirish {getRemainingLimit("spellCheck")}
-                /3, To'g'irlash {getRemainingLimit("correctText")}/3.
+                Kunlik limit: Tekshirish {getRemainingLimit("spellCheck")}/3,
+                To'g'irlash {getRemainingLimit("correctText")}/3.{" "}
                 <a
                   href="/pricing"
                   className="text-blue-600 hover:underline ml-1"
@@ -746,7 +751,7 @@ const SpellChecker = () => {
       {/* Error Alert */}
       {error && (
         <Alert
-          message={t("common.error")}
+          message="Xato yuz berdi"
           description={error}
           type="error"
           showIcon
@@ -759,8 +764,8 @@ const SpellChecker = () => {
       {/* Correction Progress Alert */}
       {correctionInProgress && (
         <Alert
-          message={`${lang?.label} - ${t("spellChecker.correcting")}`}
-          description={t("spellChecker.correcting")}
+          message={`${lang?.label || ""} - To'g'irlanmoqda`}
+          description="Matn avtomatik to'g'irlanmoqda"
           type="info"
           showIcon
           className="mb-4"
@@ -777,7 +782,7 @@ const SpellChecker = () => {
               <div className="flex items-center justify-between">
                 <Space>
                   <FileTextOutlined className="text-blue-500" />
-                  <span>{t("spellChecker.title")}</span>
+                  <span>Imlo tekshirish</span>
                   <Tag color="blue">{lang?.label}</Tag>
                   <Tag color="green">{script?.label}</Tag>
                   {statistics && (
@@ -790,13 +795,11 @@ const SpellChecker = () => {
                           : "red"
                       }
                     >
-                      {statistics.accuracy}%{" "}
-                      {t("spellChecker.statistics.accuracy")}
+                      {statistics.accuracy}% aniqlik
                     </Tag>
                   )}
                 </Space>
 
-                {/* Edit button */}
                 {hasChecked && (
                   <Button
                     icon={<EditOutlined />}
@@ -817,9 +820,7 @@ const SpellChecker = () => {
                   <Spin
                     size="large"
                     tip={
-                      isChecking
-                        ? t("spellChecker.checking")
-                        : t("spellChecker.correcting")
+                      isChecking ? "Tekshirilmoqda..." : "To'g'irlanmoqda..."
                     }
                   />
                 </div>
@@ -827,7 +828,6 @@ const SpellChecker = () => {
 
               {/* Text Editor */}
               <div className="relative">
-                {/* Normal textarea - ko'rinadi agar tekshirilmagan bo'lsa yoki edit mode da */}
                 {(!hasChecked || isEditMode) && (
                   <TextArea
                     ref={textAreaRef}
@@ -837,23 +837,22 @@ const SpellChecker = () => {
                         ? (e) => setDisplayText(e.target.value)
                         : handleTextChange
                     }
-                    placeholder={t("spellChecker.placeholder")}
+                    placeholder="Bu yerga tekshirmoqchi bo'lgan matnni yozing..."
                     className="w-full min-h-[400px] resize-none"
                     style={{
-                      fontSize: "14px",
-                      lineHeight: "1.5715",
+                      fontSize: "16px",
+                      lineHeight: "1.6",
                       fontFamily: "inherit",
                     }}
                   />
                 )}
 
-                {/* Checked text display - ko'rinadi agar tekshirilgan bo'lsa va edit mode da emas */}
                 {hasChecked && !isEditMode && (
                   <div
-                    className="w-full min-h-[400px] p-2 border border-gray-300 rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white cursor-text overflow-auto"
+                    className="w-full min-h-[400px] p-3 border border-gray-300 rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white cursor-text overflow-auto"
                     style={{
-                      fontSize: "14px",
-                      lineHeight: "1.5715",
+                      fontSize: "16px",
+                      lineHeight: "1.6",
                       fontFamily: "inherit",
                       whiteSpace: "pre-wrap",
                       wordWrap: "break-word",
@@ -868,9 +867,8 @@ const SpellChecker = () => {
               {/* Text Statistics */}
               <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
                 <span>
-                  {t("common.characters")}:{" "}
-                  {(isEditMode ? displayText : originalText).length} |{" "}
-                  {t("common.words")}:{" "}
+                  Belgilar: {(isEditMode ? displayText : originalText).length} |{" "}
+                  So'zlar:{" "}
                   {
                     (isEditMode ? displayText : originalText)
                       .trim()
@@ -880,9 +878,7 @@ const SpellChecker = () => {
                 </span>
                 {statistics && (
                   <span>
-                    {t("spellChecker.statistics.correctWords")}:{" "}
-                    {statistics.correctWords} |{" "}
-                    {t("spellChecker.statistics.incorrectWords")}:{" "}
+                    To'g'ri: {statistics.correctWords} | Xato:{" "}
                     {statistics.incorrectWords}
                   </span>
                 )}
@@ -907,7 +903,7 @@ const SpellChecker = () => {
                     title={
                       <Space>
                         <BookOutlined />
-                        <span>{t("spellChecker.statistics.title")}</span>
+                        <span>Statistika</span>
                         <Tag color="blue">{lang?.label}</Tag>
                       </Space>
                     }
@@ -917,9 +913,7 @@ const SpellChecker = () => {
                     <div className="space-y-3">
                       <div>
                         <div className="flex justify-between items-center mb-1">
-                          <Text strong>
-                            {t("spellChecker.statistics.accuracy")}
-                          </Text>
+                          <Text strong>Aniqlik darajasi</Text>
                           <Text
                             strong
                             className={
@@ -949,39 +943,31 @@ const SpellChecker = () => {
 
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <Text type="secondary">
-                            {t("spellChecker.statistics.totalWords")}
-                          </Text>
+                          <Text type="secondary">Jami so'zlar</Text>
                           <div className="font-semibold">
                             {statistics.totalWords}
                           </div>
                         </div>
                         <div>
-                          <Text type="secondary">
-                            {t("spellChecker.statistics.correctWords")}
-                          </Text>
+                          <Text type="secondary">To'g'ri so'zlar</Text>
                           <div className="font-semibold text-green-500">
                             {statistics.correctWords}
                           </div>
                         </div>
                         <div>
-                          <Text type="secondary">
-                            {t("spellChecker.statistics.incorrectWords")}
-                          </Text>
+                          <Text type="secondary">Xato so'zlar</Text>
                           <div className="font-semibold text-red-500">
                             {statistics.incorrectWords}
                           </div>
                         </div>
                         <div>
-                          <Text type="secondary">
-                            {t("spellChecker.detectedScript")}
-                          </Text>
+                          <Text type="secondary">Aniqlangan alifbo</Text>
                           <div className="font-semibold">
                             {statistics.scriptType === "cyrillic"
-                              ? t("transliterator.cyrillic")
+                              ? "Kirill"
                               : statistics.scriptType === "latin"
-                              ? t("transliterator.latin")
-                              : t("transliterator.mixed")}
+                              ? "Lotin"
+                              : "Aralash"}
                           </div>
                         </div>
                       </div>
@@ -995,7 +981,7 @@ const SpellChecker = () => {
                     title={
                       <Space>
                         <ExclamationCircleOutlined className="text-red-500" />
-                        <span>{t("spellChecker.suggestions.title")}</span>
+                        <span>Takliflar</span>
                         <Tag color="red">{mistakes.length} ta xato</Tag>
                         <Tag color="blue">{lang?.label}</Tag>
                       </Space>
@@ -1014,8 +1000,7 @@ const SpellChecker = () => {
                                 "{mistake.mistakeWord}"
                               </Text>
                               <Tag size="small" color="blue">
-                                {mistake.similarWords.length}{" "}
-                                {t("spellChecker.suggestions.title")}
+                                {mistake.similarWords.length} taklif
                               </Tag>
                             </div>
 
@@ -1026,8 +1011,7 @@ const SpellChecker = () => {
                                   className="text-xs flex items-center"
                                 >
                                   <BulbOutlined className="mr-1" />
-                                  {lang?.label}da{" "}
-                                  {t("spellChecker.suggestions.title")}:
+                                  {lang?.label}da takliflar:
                                 </Text>
                                 <div className="space-y-1">
                                   {mistake.similarWords
@@ -1064,7 +1048,7 @@ const SpellChecker = () => {
                                             )
                                           }
                                         >
-                                          {t("common.apply")}
+                                          Qo'llash
                                         </Button>
                                       </div>
                                     ))}
@@ -1084,7 +1068,7 @@ const SpellChecker = () => {
                         description={
                           <div>
                             <Text strong className="text-green-500">
-                              {t("common.success")}!
+                              Ajoyib!
                             </Text>
                             <div className="text-sm text-gray-500">
                               {lang?.label}da xato topilmadi
@@ -1107,18 +1091,19 @@ const SpellChecker = () => {
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
-                  <div className="space-y-2">
-                    <Title level={4}>{t("spellChecker.title")}</Title>
+                  <div className="space-y-4">
+                    <Title level={4}>Imlo tekshirish</Title>
                     <Text className="text-gray-500">
-                      {t("spellChecker.placeholder")}
+                      Bu yerga tekshirmoqchi bo'lgan matnni yozing...
                     </Text>
+
                     <div className="text-xs text-gray-400 space-y-1">
-                      <div>• {t("spellChecker.statistics.accuracy")}</div>
+                      <div>• Aniqlik darajasi</div>
                       <div>
                         • {lang?.label} va {script?.label}
                       </div>
-                      <div>• {t("spellChecker.title")}</div>
-                      <div>• {t("spellChecker.autoCorrect")}</div>
+                      <div>• Imlo tekshirish</div>
+                      <div>• Avtomatik to'g'irlash</div>
                     </div>
 
                     {/* Language specific tips */}
@@ -1207,6 +1192,12 @@ const SpellChecker = () => {
 
         :global(.spell-error:hover::after) {
           opacity: 1;
+        }
+
+        /* Focus styles */
+        :global(.spell-error:focus) {
+          outline: 2px solid #1890ff;
+          outline-offset: 2px;
         }
       `}</style>
     </div>

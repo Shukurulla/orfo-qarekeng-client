@@ -1,4 +1,4 @@
-// src/App.jsx - i18n bilan yangilangan
+// src/App.jsx - AuthProvider bilan yangilangan
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Provider } from "react-redux";
@@ -9,18 +9,26 @@ import { ToastContainer } from "react-toastify";
 import { store } from "./store";
 import { useAppSelector, useAppDispatch } from "./hooks/redux";
 import { updateDeviceInfo } from "./store/slices/uiSlice";
+import { syncUserFromStorage } from "./store/slices/AuthSlice";
 import { useTranslation } from "react-i18next";
+
+// Auth Provider - QO'SHILDI
+import { AuthProvider } from "./contexts/AuthContext";
 
 // Components
 import Layout from "./components/Layout/Layout";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 // Simple Components
 import SimpleSpellChecker from "./components/SpellChecker/SpellChecker";
 import Transliterator from "./components/Transliterator/Transliterator";
 import DocumentGenerator from "./components/DocumentGenerator/DocumentGenerator";
+
+// Auth Components - QO'SHILDI
+import { LoginModal, SignupModal, ProfileModal } from "./components/Auth";
 
 // Styles
 import "antd/dist/reset.css";
@@ -30,8 +38,6 @@ import "./styles/globals.css";
 // Error Boundary
 import ErrorBoundary from "./components/ErrorBoundary/ErrorBoundary";
 import HistoryPage from "./components/History/HistoryPage";
-import LoginModal from "./components/Auth/LoginModal";
-import SignupModal from "./components/Auth/signupModal";
 
 // Theme configuration
 const createMuiTheme = (mode) =>
@@ -92,6 +98,12 @@ function AppContent() {
     };
   }, [dispatch]);
 
+  // Auth initialization - QO'SHILDI
+  useEffect(() => {
+    // Sync user from localStorage on app start
+    dispatch(syncUserFromStorage());
+  }, [dispatch]);
+
   // Theme initialization
   useEffect(() => {
     if (isDark) {
@@ -125,14 +137,27 @@ function AppContent() {
                   <Route path="/translate" element={<Transliterator />} />
                   <Route path="/document" element={<DocumentGenerator />} />
                   <Route path="/about" element={<About />} />
-                  <Route path="/history" element={<HistoryPage />} />
-                  <Route path="/login" element={<LoginModal />} />
-                  <Route path="/register" element={<SignupModal />} />
+
+                  {/* Protected Routes - QO'SHILDI */}
+                  <Route
+                    path="/history"
+                    element={
+                      <ProtectedRoute>
+                        <HistoryPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Layout>
             </ErrorBoundary>
           </Router>
+
+          {/* Auth Modals - QO'SHILDI */}
+          <LoginModal />
+          <SignupModal />
+          <ProfileModal />
 
           {/* Toast Notifications */}
           <ToastContainer
@@ -155,11 +180,13 @@ function AppContent() {
   );
 }
 
-// Main App wrapper with Redux Provider
+// Main App wrapper with Redux Provider and AuthProvider
 function App() {
   return (
     <Provider store={store}>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </Provider>
   );
 }
