@@ -29,6 +29,9 @@ import "./styles/globals.css";
 
 // Error Boundary
 import ErrorBoundary from "./components/ErrorBoundary/ErrorBoundary";
+import HistoryPage from "./components/History/HistoryPage";
+import LoginModal from "./components/Auth/LoginModal";
+import SignupModal from "./components/Auth/signupModal";
 
 // Theme configuration
 const createMuiTheme = (mode) =>
@@ -122,6 +125,9 @@ function AppContent() {
                   <Route path="/translate" element={<Transliterator />} />
                   <Route path="/document" element={<DocumentGenerator />} />
                   <Route path="/about" element={<About />} />
+                  <Route path="/history" element={<HistoryPage />} />
+                  <Route path="/login" element={<LoginModal />} />
+                  <Route path="/register" element={<SignupModal />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Layout>

@@ -1,4 +1,4 @@
-// src/components/SpellChecker/SpellChecker.jsx - tarjimalar bilan yangilangan
+// src/components/SpellChecker/SpellChecker.jsx - IMPORT FIX
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
@@ -17,6 +17,8 @@ import {
   Tooltip,
   Progress,
   Select,
+  Modal,
+  Input, // QO'SHILDI
 } from "antd";
 import {
   CheckOutlined,
@@ -28,6 +30,9 @@ import {
   BulbOutlined,
   GlobalOutlined,
   FontSizeOutlined,
+  EditOutlined,
+  LockOutlined,
+  CrownOutlined,
 } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -36,13 +41,21 @@ import {
   testConnection,
 } from "@/utils/OrfoAIService";
 import { useTranslation } from "react-i18next";
+import { useAppSelector, useAppDispatch } from "@/hooks/redux";
+import { showLoginModal, authUtils } from "@/store/slices/authSlice"; // authUtils import qilindi
 
 const { Text, Title } = Typography;
 const { Option } = Select;
+const { TextArea } = Input;
 
 const SpellChecker = () => {
   const textAreaRef = useRef(null);
   const { t, i18n } = useTranslation();
+  const dispatch = useAppDispatch();
+
+  // Auth state - xavfsiz destructuring
+  const authState = useAppSelector((state) => state.auth || {});
+  const { user = null, isAuthenticated = false } = authState;
 
   // State
   const [originalText, setOriginalText] = useState("");
@@ -55,6 +68,10 @@ const SpellChecker = () => {
   const [hasChecked, setHasChecked] = useState(false);
   const [correctionInProgress, setCorrectionInProgress] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
+
+  // Edit mode state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [displayText, setDisplayText] = useState("");
 
   // Language and script selection state
   const [selectedLanguage, setSelectedLanguage] = useState("uz");
@@ -105,15 +122,146 @@ const SpellChecker = () => {
     return { lang, script };
   };
 
+  // Check if user can use feature
+  const canUseFeature = (action) => {
+    if (!isAuthenticated) return false;
+    return authUtils.checkDailyLimit(user, action);
+  };
+
+  // Get remaining limit
+  const getRemainingLimit = (action) => {
+    if (!isAuthenticated) return 0;
+    return authUtils.getRemainingLimit(user, action);
+  };
+
+  // Show auth required modal
+  const showAuthRequired = () => {
+    Modal.confirm({
+      title: "Tizimga kirish kerak",
+      content: "Bu funksiyadan foydalanish uchun tizimga kirishingiz kerak.",
+      okText: "Kirish",
+      cancelText: "Bekor qilish",
+      onOk: () => {
+        dispatch(showLoginModal("/spellcheck"));
+      },
+    });
+  };
+
+  // Show limit exceeded modal
+  const showLimitExceeded = (action) => {
+    const actionName =
+      action === "spellCheck"
+        ? "Imlo tekshirish"
+        : action === "correctText"
+        ? "Avtomatik to'g'irlash"
+        : action;
+
+    Modal.confirm({
+      title: "Kunlik limit tugagan",
+      content: (
+        <div>
+          <p>{actionName} uchun kunlik limitingiz tugagan.</p>
+          <p>Pro rejasiga o'tib cheksiz foydalaning!</p>
+        </div>
+      ),
+      okText: "Pro rejasi",
+      cancelText: "Yopish",
+      onOk: () => {
+        // Navigate to pricing page
+        window.open("/pricing", "_blank");
+      },
+    });
+  };
+
+  // DEMO TEST DATA - faqat testing uchun
+  const demoTest = () => {
+    setOriginalText(
+      "Bu yerda imloviy xattalar bor. Menimcha bu matn to'g'rilanish kerek."
+    );
+    setDisplayText(
+      "Bu yerda imloviy xattalar bor. Menimcha bu matn to'g'rilanish kerek."
+    );
+
+    // Demo results
+    setTimeout(() => {
+      const demoResults = [
+        {
+          word: "xattalar",
+          isCorrect: false,
+          suggestions: ["xatolar"],
+          start: 16,
+          end: 24,
+        },
+        {
+          word: "to'g'rilanish",
+          isCorrect: false,
+          suggestions: ["to'g'irlanishi"],
+          start: 51,
+          end: 64,
+        },
+        {
+          word: "kerek",
+          isCorrect: false,
+          suggestions: ["kerak"],
+          start: 65,
+          end: 70,
+        },
+      ];
+
+      const demoMistakes = [
+        {
+          mistakeWord: "xattalar",
+          similarWords: [{ word: "xatolar", similarity: 95 }],
+        },
+        {
+          mistakeWord: "to'g'rilanish",
+          similarWords: [{ word: "to'g'irlanishi", similarity: 90 }],
+        },
+        {
+          mistakeWord: "kerek",
+          similarWords: [{ word: "kerak", similarity: 98 }],
+        },
+      ];
+
+      setResults(demoResults);
+      setMistakes(demoMistakes);
+      setStatistics({
+        totalWords: 10,
+        correctWords: 7,
+        incorrectWords: 3,
+        accuracy: 70,
+        textLength: 71,
+        scriptType: "latin",
+      });
+      setHasChecked(true);
+      message.info("Demo natija ko'rsatildi");
+    }, 1000);
+  };
+
   // Matn o'zgarishi
   const handleTextChange = useCallback((e) => {
-    setOriginalText(e.target.value);
+    const newText = e.target.value;
+    setOriginalText(newText);
+    setDisplayText(newText);
     setHasChecked(false);
     setError(null);
     setResults([]);
     setMistakes([]);
     setStatistics(null);
   }, []);
+
+  // Edit mode toggle
+  const handleEditToggle = useCallback(() => {
+    if (isEditMode) {
+      // Save changes
+      setOriginalText(displayText);
+      setHasChecked(false);
+      setResults([]);
+      setMistakes([]);
+      setStatistics(null);
+    }
+    setIsEditMode(!isEditMode);
+  }, [isEditMode, displayText]);
 
   // Language change handler
   const handleLanguageChange = useCallback((value) => {
@@ -145,6 +293,18 @@ const SpellChecker = () => {
 
   // Imlo tekshirish
   const handleCheck = useCallback(async () => {
+    // Auth check
+    if (!isAuthenticated) {
+      showAuthRequired();
+      return;
+    }
+
+    // Limit check
+    if (!canUseFeature("spellCheck")) {
+      showLimitExceeded("spellCheck");
+      return;
+    }
+
     if (!originalText.trim()) {
       message.warning(t("spellChecker.errors.empty"));
       return;
@@ -207,10 +367,29 @@ const SpellChecker = () => {
     } finally {
       setIsChecking(false);
     }
-  }, [originalText, selectedLanguage, selectedScript, t]);
+  }, [
+    originalText,
+    selectedLanguage,
+    selectedScript,
+    t,
+    isAuthenticated,
+    user,
+  ]);
 
   // Avtomatik to'g'irlash
   const handleAutoCorrect = useCallback(async () => {
+    // Auth check
+    if (!isAuthenticated) {
+      showAuthRequired();
+      return;
+    }
+
+    // Limit check
+    if (!canUseFeature("correctText")) {
+      showLimitExceeded("correctText");
+      return;
+    }
+
     if (!originalText.trim()) {
       message.warning(t("spellChecker.errors.empty"));
       return;
@@ -231,6 +410,7 @@ const SpellChecker = () => {
 
         if (correctedText !== originalText) {
           setOriginalText(correctedText);
+          setDisplayText(correctedText);
           setHasChecked(false);
           setResults([]);
           setMistakes([]);
@@ -258,7 +438,14 @@ const SpellChecker = () => {
       setIsCorrecting(false);
       setCorrectionInProgress(false);
     }
-  }, [originalText, selectedLanguage, selectedScript, t]);
+  }, [
+    originalText,
+    selectedLanguage,
+    selectedScript,
+    t,
+    isAuthenticated,
+    user,
+  ]);
 
   // To'g'irlashdan keyin avtomatik tekshirish
   const handleAutoCheckAfterCorrection = useCallback(
@@ -289,12 +476,14 @@ const SpellChecker = () => {
   // Tozalash
   const handleClear = useCallback(() => {
     setOriginalText("");
+    setDisplayText("");
     setResults([]);
     setMistakes([]);
     setStatistics(null);
     setHasChecked(false);
     setError(null);
     setCorrectionInProgress(false);
+    setIsEditMode(false);
     if (textAreaRef.current) {
       textAreaRef.current.focus();
     }
@@ -311,6 +500,7 @@ const SpellChecker = () => {
       );
       const newText = originalText.replace(regex, replacement);
       setOriginalText(newText);
+      setDisplayText(newText);
       setHasChecked(false);
       setResults([]);
       setMistakes([]);
@@ -402,6 +592,11 @@ const SpellChecker = () => {
     [mistakes, handleReplaceWord, t]
   );
 
+  // Initialize display text
+  useEffect(() => {
+    setDisplayText(originalText);
+  }, [originalText]);
+
   const { lang, script } = getCurrentLanguageInfo();
 
   // Alifbo ko'rsatilishini tekshirish
@@ -466,6 +661,19 @@ const SpellChecker = () => {
 
             <Col xs={24} sm={8} md={14}>
               <div className="w-full flex items-center gap-2">
+                {/* Auth status indicator */}
+                {!isAuthenticated && (
+                  <Tooltip title="Tizimga kirishingiz kerak">
+                    <LockOutlined className="text-red-500" />
+                  </Tooltip>
+                )}
+
+                {isAuthenticated && user?.plan === "pro" && (
+                  <Tooltip title="Pro foydalanuvchi">
+                    <CrownOutlined className="text-yellow-500" />
+                  </Tooltip>
+                )}
+
                 <Button
                   type="primary"
                   icon={<CheckOutlined />}
@@ -475,6 +683,11 @@ const SpellChecker = () => {
                   size="large"
                 >
                   {t("spellChecker.checkWithLanguage")}
+                  {isAuthenticated && (
+                    <span className="ml-1">
+                      ({getRemainingLimit("spellCheck")})
+                    </span>
+                  )}
                 </Button>
 
                 <Button
@@ -486,6 +699,11 @@ const SpellChecker = () => {
                   className="bg-green-500 text-white border-green-500 hover:bg-green-600"
                 >
                   {t("spellChecker.autoCorrect")}
+                  {isAuthenticated && (
+                    <span className="ml-1">
+                      ({getRemainingLimit("correctText")})
+                    </span>
+                  )}
                 </Button>
 
                 <Button
@@ -495,9 +713,33 @@ const SpellChecker = () => {
                 >
                   {t("common.clear")}
                 </Button>
+
+                {/* DEMO BUTTON - faqat testing uchun */}
+                <Button
+                  onClick={demoTest}
+                  className="bg-purple-500 text-white border-purple-500"
+                >
+                  Demo
+                </Button>
               </div>
             </Col>
           </Row>
+
+          {/* Limit warning */}
+          {isAuthenticated && user?.plan === "start" && (
+            <div className="mt-3 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded">
+              <Text className="text-orange-700 dark:text-orange-300 text-xs">
+                Kunlik limit: Imlo tekshirish {getRemainingLimit("spellCheck")}
+                /3, To'g'irlash {getRemainingLimit("correctText")}/3.
+                <a
+                  href="/pricing"
+                  className="text-blue-600 hover:underline ml-1"
+                >
+                  Pro rejasiga o'ting
+                </a>
+              </Text>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -553,6 +795,18 @@ const SpellChecker = () => {
                     </Tag>
                   )}
                 </Space>
+
+                {/* Edit button */}
+                {hasChecked && (
+                  <Button
+                    icon={<EditOutlined />}
+                    onClick={handleEditToggle}
+                    type={isEditMode ? "primary" : "default"}
+                    size="small"
+                  >
+                    {isEditMode ? "Saqlash" : "Tahrirlash"}
+                  </Button>
+                )}
               </div>
             }
           >
@@ -573,14 +827,18 @@ const SpellChecker = () => {
 
               {/* Text Editor */}
               <div className="relative">
-                {/* Normal textarea - ko'rinadi agar tekshirilmagan bo'lsa */}
-                {!hasChecked && (
-                  <textarea
+                {/* Normal textarea - ko'rinadi agar tekshirilmagan bo'lsa yoki edit mode da */}
+                {(!hasChecked || isEditMode) && (
+                  <TextArea
                     ref={textAreaRef}
-                    value={originalText}
-                    onChange={handleTextChange}
+                    value={isEditMode ? displayText : originalText}
+                    onChange={
+                      isEditMode
+                        ? (e) => setDisplayText(e.target.value)
+                        : handleTextChange
+                    }
                     placeholder={t("spellChecker.placeholder")}
-                    className="w-full min-h-[400px] p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                    className="w-full min-h-[400px] resize-none"
                     style={{
                       fontSize: "14px",
                       lineHeight: "1.5715",
@@ -589,8 +847,8 @@ const SpellChecker = () => {
                   />
                 )}
 
-                {/* Checked text display - ko'rinadi agar tekshirilgan bo'lsa */}
-                {hasChecked && (
+                {/* Checked text display - ko'rinadi agar tekshirilgan bo'lsa va edit mode da emas */}
+                {hasChecked && !isEditMode && (
                   <div
                     className="w-full min-h-[400px] p-2 border border-gray-300 rounded-md bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white cursor-text overflow-auto"
                     style={{
@@ -610,10 +868,11 @@ const SpellChecker = () => {
               {/* Text Statistics */}
               <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
                 <span>
-                  {t("common.characters")}: {originalText.length} |{" "}
+                  {t("common.characters")}:{" "}
+                  {(isEditMode ? displayText : originalText).length} |{" "}
                   {t("common.words")}:{" "}
                   {
-                    originalText
+                    (isEditMode ? displayText : originalText)
                       .trim()
                       .split(/\s+/)
                       .filter((w) => w).length
@@ -873,6 +1132,25 @@ const SpellChecker = () => {
                           : "Rus tilining imlo va grammatik qoidalariga mos tekshirish"}
                       </Text>
                     </div>
+
+                    {/* Auth prompt for non-authenticated users */}
+                    {!isAuthenticated && (
+                      <div className="mt-4 p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                        <Text className="text-sm text-yellow-800 dark:text-yellow-200">
+                          Bu funksiyadan foydalanish uchun{" "}
+                          <Button
+                            type="link"
+                            size="small"
+                            className="p-0 h-auto"
+                            onClick={() =>
+                              dispatch(showLoginModal("/spellcheck"))
+                            }
+                          >
+                            tizimga kiring
+                          </Button>
+                        </Text>
+                      </div>
+                    )}
                   </div>
                 }
               />
